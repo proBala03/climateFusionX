@@ -1,38 +1,45 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { db } from "./db";
+import { climateData, type ClimateData, type InsertClimateData, type DataPoint, type ForecastPoint, type ForecastResponse } from "@shared/schema";
+import { eq, and, sql } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getSeries(variable: string, region: string): Promise<DataPoint[]>;
+  insertClimateData(data: InsertClimateData): Promise<ClimateData>;
+  bulkInsertClimateData(data: InsertClimateData[]): Promise<void>;
+  getAllData(): Promise<ClimateData[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async getSeries(variable: string, region: string): Promise<DataPoint[]> {
+    const results = await db
+      .select({
+        year: climateData.year,
+        value: climateData.value,
+      })
+      .from(climateData)
+      .where(
+        and(
+          eq(climateData.variable, variable),
+          eq(climateData.region, region)
+        )
+      )
+      .orderBy(climateData.year);
+    
+    return results;
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async insertClimateData(data: InsertClimateData): Promise<ClimateData> {
+    const [result] = await db.insert(climateData).values(data).returning();
+    return result;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async bulkInsertClimateData(data: InsertClimateData[]): Promise<void> {
+    await db.insert(climateData).values(data);
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async getAllData(): Promise<ClimateData[]> {
+    return await db.select().from(climateData);
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
