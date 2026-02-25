@@ -19,6 +19,19 @@ const REGION_OPTIONS = [
   { label: "Global Average", value: "global" },
   { label: "United States", value: "usa" },
   { label: "India", value: "india" },
+  { label: "United Kingdom", value: "uk" },
+  { label: "France", value: "france" },
+  { label: "Germany", value: "germany" },
+  { label: "China", value: "china" },
+  { label: "Argentina", value: "argentina" },
+  { label: "South Africa", value: "south africa" },
+  { label: "Australia", value: "australia" },
+  { label: "Indonesia", value: "indonesia" },
+  { label: "Brazil", value: "brazil" },
+  { label: "Russia", value: "russia" },
+  { label: "Canada", value: "canada" },
+  { label: "Japan", value: "japan" },
+  { label: "Mexico", value: "mexico" },
 ];
 
 const HORIZON_OPTIONS = [
