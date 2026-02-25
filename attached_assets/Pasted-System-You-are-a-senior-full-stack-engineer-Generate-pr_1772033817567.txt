@@ -1,0 +1,95 @@
+System:
+You are a senior full-stack engineer. Generate production-ready, clean, modular code. 
+Use best practices, TypeScript strict mode, and clean folder structure. 
+Do not include unnecessary explanations. 
+Provide complete working files with filenames clearly labeled.
+
+User:
+
+I am building a project called "ClimateFusionX" – a Climate Change Trend Analysis & Forecasting Web App.
+
+Tech Stack:
+Frontend:
+- Next.js 16 (App Router)
+- TypeScript
+- Tailwind CSS
+- Recharts for charts
+
+Backend:
+- Python FastAPI
+- Pandas, NumPy
+- Scikit-learn
+- Statsmodels (ARIMA)
+- Optional LSTM (TensorFlow)
+
+Project Requirements:
+
+1. Landing Page:
+   - Hero section with project name "ClimateFusionX"
+   - Subtitle: "Hybrid AI Engine for Climate Trend Analysis & Forecasting"
+   - Dark futuristic UI (neon blue + purple gradient)
+   - Button: "Launch Dashboard"
+
+2. Dashboard Page:
+   - Dropdown to select:
+     - Climate Variable (Temperature, CO2, Sea Level)
+     - Region (Global, India, USA)
+     - Forecast Horizon (12, 24, 36 months)
+   - Display:
+     - Historical line chart
+     - Forecast overlay (dashed line)
+     - Confidence interval shaded area
+   - Metrics cards:
+     - RMSE
+     - MAE
+     - Model Used (ARIMA / LSTM / Ensemble)
+
+3. Backend API:
+   Create FastAPI endpoints:
+   - GET /series/{variable}/{region}
+   - POST /forecast
+   - GET /metrics
+
+   Forecast endpoint should:
+   - Load saved ensemble model
+   - Return JSON:
+     {
+       historical: [],
+       forecast: [],
+       lower_bound: [],
+       upper_bound: [],
+       metrics: { rmse: float, mae: float }
+     }
+
+4. Model Layer:
+   - ARIMA model (statsmodels)
+   - LSTM model (TensorFlow)
+   - GradientBoostingRegressor
+   - Ensemble weighted by inverse RMSE
+   - Predict function: predict(series, horizon)
+
+5. UI Requirements:
+   - Glassmorphism cards
+   - Animated transitions
+   - Responsive layout
+   - Loading spinner while fetching forecast
+   - Error handling state
+
+6. Folder Structure:
+   Provide full folder tree for:
+   - frontend/
+   - backend/
+   - ml/
+
+7. Provide:
+   - package.json
+   - requirements.txt
+   - Example .env
+   - Dockerfile for backend
+   - README with setup steps
+
+8. Use mock sample climate data if real data not available.
+
+Output:
+Provide complete code separated by filenames.
+Do not summarize.
