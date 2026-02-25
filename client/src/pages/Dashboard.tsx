@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Activity, AlertTriangle, ArrowLeft, BarChart3, Database, Loader2, ThermometerSun } from "lucide-react";
+import { Activity, AlertTriangle, ArrowLeft, BarChart3, Database, Loader2, ThermometerSun, Zap } from "lucide-react";
 import { Link } from "wouter";
 
 import { useForecast } from "@/hooks/use-climate";
