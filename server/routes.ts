@@ -39,10 +39,14 @@ export async function registerRoutes(
         });
       }
 
-      const forecast = generateForecast(historical, horizon, variable);
+      // Filter historical data to be "until yesterday" (2026-02-26)
+      // Since our dataset uses years, we simulate the cut-off at 2026
+      const filteredHistorical = historical.filter(d => d.year <= 2026);
+
+      const forecast = generateForecast(filteredHistorical, horizon, variable);
       
       const response: ForecastResponse = {
-        historical,
+        historical: filteredHistorical,
         forecast,
         metrics: {
           rmse: Math.random() * 0.5 + 0.1,

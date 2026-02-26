@@ -172,15 +172,19 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <GlassCard glowColor="primary" className="p-5">
+              <GlassCard glowColor="primary" className="p-5 overflow-visible">
                 <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">Model Architecture</p>
                 <div className="flex items-end justify-between">
                   <h3 className="text-2xl font-bold font-display text-white">
                     {forecastMutation.data?.metrics?.model || "Ensemble"}
                   </h3>
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                  <motion.div 
+                    className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                  >
                     <Zap className="w-4 h-4 text-primary" />
-                  </div>
+                  </motion.div>
                 </div>
               </GlassCard>
               

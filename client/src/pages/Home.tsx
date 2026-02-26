@@ -37,8 +37,20 @@ export default function Home() {
             <span className="text-sm font-medium text-primary tracking-wide uppercase">Next-Gen Predictive Modeling</span>
           </motion.div>
           
-          <motion.h1 variants={fadeInUp} className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight font-display text-glow">
-            Climate<span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Fusion</span>X
+          <motion.h1 
+            variants={fadeInUp} 
+            className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight font-display text-glow"
+            animate={{ 
+              scale: [1, 1.02, 1],
+              rotate: [0, 0.5, -0.5, 0]
+            }}
+            transition={{ 
+              duration: 5, 
+              repeat: Infinity,
+              ease: "easeInOut" 
+            }}
+          >
+            Climate<span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-purple-500 to-secondary animate-gradient-x">Fusion</span>X
           </motion.h1>
           
           <motion.p variants={fadeInUp} className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">
