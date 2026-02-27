@@ -1,56 +1,85 @@
 import { Link } from "wouter";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { ArrowRight, Activity, Globe, Zap } from "lucide-react";
 import { Button } from "@/components/Button";
 import { GlassCard } from "@/components/GlassCard";
 
-const fadeInUp = {
-  initial: { opacity: 0, y: 30 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.6, ease: "easeOut" }
-};
-
-const staggerContainer = {
-  animate: {
-    transition: {
-      staggerChildren: 0.2
-    }
-  }
-};
-
 export default function Home() {
+  const shouldReduceMotion = useReducedMotion();
+
+  const fadeInUp = {
+    initial: shouldReduceMotion
+      ? { opacity: 0 }
+      : { opacity: 0, y: 28, scale: 0.99, filter: "blur(10px)" },
+    animate: shouldReduceMotion
+      ? { opacity: 1 }
+      : { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" },
+    transition: shouldReduceMotion
+      ? { duration: 0.2 }
+      : { type: "spring", stiffness: 140, damping: 18, mass: 0.9 }
+  } as const;
+
+  const staggerContainer: Variants = {
+    initial: {},
+    animate: {
+      transition: {
+        staggerChildren: shouldReduceMotion ? 0.04 : 0.12,
+        delayChildren: shouldReduceMotion ? 0 : 0.05
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col justify-center">
       {/* Decorative background elements */}
-      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px] -z-10 mix-blend-screen" />
-      <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-secondary/20 rounded-full blur-[150px] -z-10 mix-blend-screen" />
+      <motion.div
+        className="pointer-events-none absolute -top-20 -left-20 h-72 w-72 rotate-[14deg] bg-primary/50 border-2 border-border neo-shadow-lg -z-10"
+        aria-hidden
+        animate={
+          shouldReduceMotion
+            ? undefined
+            : { x: [0, 18, -10, 0], y: [0, -14, 10, 0], rotate: [14, 10, 16, 14] }
+        }
+        transition={shouldReduceMotion ? undefined : { duration: 18, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="pointer-events-none absolute -bottom-28 -right-28 h-80 w-80 rotate-[-10deg] bg-accent/40 border-2 border-border neo-shadow-lg -z-10"
+        aria-hidden
+        animate={
+          shouldReduceMotion
+            ? undefined
+            : { x: [0, -22, 12, 0], y: [0, 12, -16, 0], rotate: [-10, -6, -14, -10] }
+        }
+        transition={shouldReduceMotion ? undefined : { duration: 22, repeat: Infinity, ease: "easeInOut" }}
+      />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-20 pb-16 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-24 pb-16 relative z-10">
         <motion.div 
           className="text-center max-w-4xl mx-auto"
+          variants={staggerContainer}
           initial="initial"
           animate="animate"
-          variants={staggerContainer}
         >
-          <motion.div variants={fadeInUp} className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-panel mb-8 border-primary/30">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-sm font-medium text-primary tracking-wide uppercase">Next-Gen Predictive Modeling</span>
+          <motion.div
+            variants={fadeInUp}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md neo-surface neo-shadow mb-8 bg-card"
+            whileHover={shouldReduceMotion ? undefined : { y: -2, scale: 1.01 }}
+            transition={shouldReduceMotion ? undefined : { type: "spring", stiffness: 260, damping: 18 }}
+          >
+            <span className="w-2.5 h-2.5 rounded-sm bg-accent border-2 border-border" />
+            <span className="text-sm font-black tracking-wide uppercase">Next-Gen Predictive Modeling</span>
           </motion.div>
           
           <motion.h1 
             variants={fadeInUp} 
-            className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight font-display text-glow"
-            animate={{ 
-              scale: [1, 1.02, 1],
-              rotate: [0, 0.5, -0.5, 0]
-            }}
-            transition={{ 
-              duration: 5, 
-              repeat: Infinity,
-              ease: "easeInOut" 
-            }}
+            className="text-5xl md:text-7xl font-black mb-6 leading-[0.95] font-display"
+            whileHover={shouldReduceMotion ? undefined : { scale: 1.01 }}
+            transition={shouldReduceMotion ? undefined : { type: "spring", stiffness: 180, damping: 16 }}
           >
-            Climate<span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-purple-500 to-secondary animate-gradient-x">Fusion</span>X
+            <span className="neo-text-shadow">Climate</span>{" "}
+            <span className="inline-block neo-surface neo-shadow bg-secondary text-secondary-foreground px-3 py-1 -rotate-1">
+              FusionX
+            </span>
           </motion.h1>
           
           <motion.p variants={fadeInUp} className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">
@@ -74,14 +103,18 @@ export default function Home() {
         {/* Feature Cards */}
         <motion.div 
           className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-24"
+          variants={staggerContainer}
           initial="initial"
           whileInView="animate"
-          viewport={{ once: true }}
-          variants={staggerContainer}
+          viewport={{ once: true, amount: 0.25, margin: "0px 0px -80px 0px" }}
         >
-          <motion.div variants={fadeInUp}>
+          <motion.div
+            variants={fadeInUp}
+            whileHover={shouldReduceMotion ? undefined : { y: -8, scale: 1.02 }}
+            transition={shouldReduceMotion ? undefined : { type: "spring", stiffness: 240, damping: 18 }}
+          >
             <GlassCard hoverable glowColor="primary" className="p-8 h-full">
-              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-6 border border-primary/30 text-primary">
+              <div className="w-12 h-12 rounded-md bg-primary text-primary-foreground flex items-center justify-center mb-6 border-2 border-border neo-shadow">
                 <Globe className="w-6 h-6" />
               </div>
               <h3 className="text-xl font-bold mb-3 font-display">Global Scope</h3>
@@ -91,9 +124,13 @@ export default function Home() {
             </GlassCard>
           </motion.div>
 
-          <motion.div variants={fadeInUp}>
+          <motion.div
+            variants={fadeInUp}
+            whileHover={shouldReduceMotion ? undefined : { y: -8, scale: 1.02 }}
+            transition={shouldReduceMotion ? undefined : { type: "spring", stiffness: 240, damping: 18 }}
+          >
             <GlassCard hoverable glowColor="secondary" className="p-8 h-full">
-              <div className="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center mb-6 border border-secondary/30 text-secondary">
+              <div className="w-12 h-12 rounded-md bg-secondary text-secondary-foreground flex items-center justify-center mb-6 border-2 border-border neo-shadow">
                 <Activity className="w-6 h-6" />
               </div>
               <h3 className="text-xl font-bold mb-3 font-display">Ensemble Forecasting</h3>
@@ -103,9 +140,13 @@ export default function Home() {
             </GlassCard>
           </motion.div>
 
-          <motion.div variants={fadeInUp}>
+          <motion.div
+            variants={fadeInUp}
+            whileHover={shouldReduceMotion ? undefined : { y: -8, scale: 1.02 }}
+            transition={shouldReduceMotion ? undefined : { type: "spring", stiffness: 240, damping: 18 }}
+          >
             <GlassCard hoverable glowColor="primary" className="p-8 h-full">
-              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-6 border border-primary/30 text-primary">
+              <div className="w-12 h-12 rounded-md bg-accent text-accent-foreground flex items-center justify-center mb-6 border-2 border-border neo-shadow">
                 <Zap className="w-6 h-6" />
               </div>
               <h3 className="text-xl font-bold mb-3 font-display">Real-time Processing</h3>

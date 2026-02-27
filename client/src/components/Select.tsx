@@ -11,23 +11,22 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className="flex flex-col gap-2">
         {label && (
-          <label className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+          <label className="text-xs font-bold text-foreground uppercase tracking-[0.14em]">
             {label}
           </label>
         )}
         <div className="relative">
           <select
             className={cn(
-              "w-full h-11 appearance-none rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-foreground",
-              "focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent",
-              "transition-all duration-200 backdrop-blur-md cursor-pointer hover:bg-white/10",
+              "neo-focus neo-hover neo-press neo-surface neo-shadow w-full h-11 appearance-none rounded-md px-4 py-2 text-sm cursor-pointer",
+              "bg-card",
               className
             )}
             ref={ref}
             {...props}
           >
             {options.map((opt) => (
-              <option key={opt.value} value={opt.value} className="bg-background text-foreground">
+              <option key={opt.value} value={opt.value} className="bg-card text-foreground">
                 {opt.label}
               </option>
             ))}

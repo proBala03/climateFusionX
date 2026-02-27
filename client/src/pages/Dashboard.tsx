@@ -76,8 +76,8 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen relative p-4 md:p-8">
       {/* Background gradients */}
-      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-secondary/10 rounded-full blur-[150px] -z-10 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] -z-10 pointer-events-none" />
+      <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rotate-[12deg] bg-secondary/35 border-2 border-border neo-shadow-lg -z-10" />
+      <div className="pointer-events-none absolute -bottom-28 -left-28 h-80 w-80 rotate-[-10deg] bg-primary/30 border-2 border-border neo-shadow-lg -z-10" />
 
       <div className="max-w-7xl mx-auto space-y-8">
         
@@ -88,17 +88,17 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
         >
           <div>
-            <Link href="/" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors mb-2">
+            <Link href="/" className="inline-flex items-center text-sm font-bold text-muted-foreground hover:text-foreground transition-colors mb-2">
               <ArrowLeft className="w-4 h-4 mr-1" /> Back to Home
             </Link>
-            <h1 className="text-3xl font-display font-bold text-glow">Analysis Engine</h1>
+            <h1 className="text-3xl font-display font-black neo-text-shadow">Analysis Engine</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="neo-surface neo-shadow bg-card px-3 py-2 rounded-md flex items-center gap-3">
             <div className="flex h-3 w-3 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-sm bg-accent opacity-75"></span>
+              <span className="relative inline-flex rounded-sm h-3 w-3 bg-accent border-2 border-border"></span>
             </div>
-            <span className="text-sm font-medium uppercase tracking-wider text-primary">System Online</span>
+            <span className="text-sm font-black uppercase tracking-wider">System Online</span>
           </div>
         </motion.div>
 
@@ -112,8 +112,8 @@ export default function Dashboard() {
             transition={{ delay: 0.1 }}
           >
             <GlassCard className="p-6">
-              <h2 className="text-lg font-display font-semibold mb-6 flex items-center gap-2 border-b border-white/10 pb-4">
-                <Database className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-display font-black mb-6 flex items-center gap-2 border-b-2 border-border pb-4">
+                <Database className="w-5 h-5 text-foreground" />
                 Model Parameters
               </h2>
               
@@ -175,15 +175,15 @@ export default function Dashboard() {
               <GlassCard glowColor="primary" className="p-5 overflow-visible">
                 <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">Model Architecture</p>
                 <div className="flex items-end justify-between">
-                  <h3 className="text-2xl font-bold font-display text-white">
+                  <h3 className="text-2xl font-black font-display text-foreground">
                     {forecastMutation.data?.metrics?.model || "Ensemble"}
                   </h3>
                   <motion.div 
-                    className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center"
+                    className="w-8 h-8 rounded-md bg-primary text-primary-foreground border-2 border-border neo-shadow flex items-center justify-center"
                     animate={{ rotate: 360 }}
                     transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
                   >
-                    <Zap className="w-4 h-4 text-primary" />
+                    <Zap className="w-4 h-4" />
                   </motion.div>
                 </div>
               </GlassCard>
@@ -191,10 +191,10 @@ export default function Dashboard() {
               <GlassCard className="p-5">
                 <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">RMSE Error</p>
                 <div className="flex items-end justify-between">
-                  <h3 className="text-2xl font-bold font-display text-white">
+                  <h3 className="text-2xl font-black font-display text-foreground">
                     {forecastMutation.isPending ? "--" : forecastMutation.data?.metrics?.rmse?.toFixed(4) || "0.0000"}
                   </h3>
-                  <div className="text-xs font-medium px-2 py-1 rounded bg-white/10 text-emerald-400">
+                  <div className="text-xs font-black px-2 py-1 rounded-md border-2 border-border bg-background">
                     High Accuracy
                   </div>
                 </div>
@@ -203,10 +203,10 @@ export default function Dashboard() {
               <GlassCard className="p-5">
                 <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">MAE Variance</p>
                 <div className="flex items-end justify-between">
-                  <h3 className="text-2xl font-bold font-display text-white">
+                  <h3 className="text-2xl font-black font-display text-foreground">
                     {forecastMutation.isPending ? "--" : forecastMutation.data?.metrics?.mae?.toFixed(4) || "0.0000"}
                   </h3>
-                  <div className="text-xs font-medium px-2 py-1 rounded bg-white/10 text-blue-400">
+                  <div className="text-xs font-black px-2 py-1 rounded-md border-2 border-border bg-background">
                     Stable
                   </div>
                 </div>
@@ -220,13 +220,13 @@ export default function Dashboard() {
               transition={{ delay: 0.3 }}
             >
               <GlassCard className="p-6 relative min-h-[500px] flex flex-col">
-                <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
+                <div className="flex items-center justify-between mb-8 border-b-2 border-border pb-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-white/5 border border-white/10">
+                    <div className="p-2 rounded-md neo-surface neo-shadow bg-card">
                       {getVariableIcon()}
                     </div>
                     <div>
-                      <h2 className="text-xl font-display font-semibold text-white">
+                      <h2 className="text-xl font-display font-black text-foreground">
                         {getVariableLabel()} Projection
                       </h2>
                       <p className="text-sm text-muted-foreground capitalize">
@@ -238,9 +238,9 @@ export default function Dashboard() {
 
                 <div className="flex-grow relative">
                   {forecastMutation.isPending ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm z-10 rounded-xl">
-                      <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-                      <p className="text-primary font-medium tracking-widest uppercase animate-pulse">Computing Matrix...</p>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-10 rounded-md border-2 border-border neo-shadow">
+                      <Loader2 className="w-12 h-12 text-foreground animate-spin mb-4" />
+                      <p className="text-foreground font-black tracking-widest uppercase animate-pulse">Computing Matrix...</p>
                     </div>
                   ) : forecastMutation.isError ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-destructive">
