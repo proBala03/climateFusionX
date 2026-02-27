@@ -72,7 +72,7 @@ export async function registerRoutes(
     res.json({
       rmse: 0.23,
       mae: 0.18,
-      model: 'Ensemble (ARIMA + LSTM + GradientBoosting)'
+      model: 'Ensemble (ARIMA + GradientBoosting)'
     });
   });
 

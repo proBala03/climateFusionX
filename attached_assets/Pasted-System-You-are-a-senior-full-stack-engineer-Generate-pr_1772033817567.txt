@@ -42,7 +42,7 @@ Project Requirements:
    - Metrics cards:
      - RMSE
      - MAE
-     - Model Used (ARIMA / LSTM / Ensemble)
+     - Model Used (ARIMA / Ensemble)
 
 3. Backend API:
    Create FastAPI endpoints:

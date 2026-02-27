@@ -137,7 +137,7 @@ export default function Home() {
               </div>
               <h3 className="text-xl font-bold mb-3 font-display">Ensemble Forecasting</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Utilize hybrid ARIMA/LSTM mock models to project future scenarios with calculated confidence bounds.
+                Utilize hybrid ARIMA mock models to project future scenarios with calculated confidence bounds.
               </p>
             </GlassCard>
           </motion.div>
