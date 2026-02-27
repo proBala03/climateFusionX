@@ -128,6 +128,12 @@
   .neo-text-shadow {
     text-shadow: 2px 2px 0 hsl(var(--foreground));
   }
+
+  .mask-image-fade {
+    /* Fades out the background towards the bottom so it blends with content */
+    mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+  }
 }
 
 /* Custom Scrollbar for a premium feel */

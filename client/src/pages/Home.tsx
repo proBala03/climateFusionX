@@ -3,6 +3,7 @@ import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { ArrowRight, Activity, Globe, Zap } from "lucide-react";
 import { Button } from "@/components/Button";
 import { GlassCard } from "@/components/GlassCard";
+import { WeatherBackground } from "@/components/weather/WeatherBackground";
 
 export default function Home() {
   const shouldReduceMotion = useReducedMotion();
@@ -31,6 +32,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col justify-center">
+      <WeatherBackground />
       {/* Decorative background elements */}
       <motion.div
         className="pointer-events-none absolute -top-20 -left-20 h-72 w-72 rotate-[14deg] bg-primary/50 border-2 border-border neo-shadow-lg -z-10"
@@ -54,7 +56,7 @@ export default function Home() {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-24 pb-16 relative z-10">
-        <motion.div 
+        <motion.div
           className="text-center max-w-4xl mx-auto"
           variants={staggerContainer}
           initial="initial"
@@ -69,9 +71,9 @@ export default function Home() {
             <span className="w-2.5 h-2.5 rounded-sm bg-accent border-2 border-border" />
             <span className="text-sm font-black tracking-wide uppercase">Next-Gen Predictive Modeling</span>
           </motion.div>
-          
-          <motion.h1 
-            variants={fadeInUp} 
+
+          <motion.h1
+            variants={fadeInUp}
             className="text-5xl md:text-7xl font-black mb-6 leading-[0.95] font-display"
             whileHover={shouldReduceMotion ? undefined : { scale: 1.01 }}
             transition={shouldReduceMotion ? undefined : { type: "spring", stiffness: 180, damping: 16 }}
@@ -81,12 +83,12 @@ export default function Home() {
               FusionX
             </span>
           </motion.h1>
-          
+
           <motion.p variants={fadeInUp} className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">
-            Hybrid AI Engine for Climate Trend Analysis & Forecasting. 
+            Hybrid AI Engine for Climate Trend Analysis & Forecasting.
             Leveraging ensemble models to predict global shifts with unprecedented accuracy.
           </motion.p>
-          
+
           <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row items-center justify-center gap-6">
             <Link href="/dashboard" className="w-full sm:w-auto">
               <Button size="lg" className="w-full sm:w-auto group text-lg">
@@ -101,7 +103,7 @@ export default function Home() {
         </motion.div>
 
         {/* Feature Cards */}
-        <motion.div 
+        <motion.div
           className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-24"
           variants={staggerContainer}
           initial="initial"
