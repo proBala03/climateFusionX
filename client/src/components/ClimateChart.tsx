@@ -19,6 +19,49 @@ interface ClimateChartProps {
   variableName: string;
 }
 
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    const year = Math.floor(data.year);
+    const fraction = data.year % 1;
+    
+    // Determine if this is a daily or monthly forecast based on fraction magnitude
+    let dateLabel = year.toString();
+    
+    if (fraction > 0) {
+      if (fraction > 0.1) {
+        // Likely monthly (fraction > 0.08 means > ~1 month)
+        const month = Math.round(fraction * 12) || 0;
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        dateLabel = `${months[month - 1] || 'Jan'} ${year}`;
+      } else {
+        // Likely daily (fraction < 0.01 means < ~4 days)
+        const dayOfYear = Math.round(fraction * 365);
+        const date = new Date(year, 0, dayOfYear);
+        dateLabel = `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      }
+    }
+    
+    return (
+      <div className="bg-card border-2 border-border rounded-lg p-3 shadow-lg">
+        <p className="font-semibold text-foreground">Date: {dateLabel}</p>
+        {data.actual != null && (
+          <p className="text-primary">Historical: {Number(data.actual).toFixed(2)}</p>
+        )}
+        {data.forecast != null && (
+          <p className="text-secondary">Forecast: {Number(data.forecast).toFixed(2)}</p>
+        )}
+        {data.lowerBound != null && data.upperBound != null && (
+          <p className="text-muted-foreground text-sm">
+            95% Confidence Interval: {Number(data.lowerBound).toFixed(2)} - {Number(data.upperBound).toFixed(2)}
+          </p>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
+
 export function ClimateChart({ historical, forecast, variableName }: ClimateChartProps) {
   const chartData = useMemo(() => {
     if (!historical.length) return [];
@@ -99,8 +142,28 @@ export function ClimateChart({ historical, forecast, variableName }: ClimateChar
             dataKey="year" 
             stroke="hsl(var(--muted-foreground))" 
             tick={{ fill: 'hsl(var(--muted-foreground))' }}
+            tickFormatter={(value) => {
+              const year = Math.floor(value);
+              const fraction = value % 1;
+              
+              if (fraction > 0) {
+                if (fraction > 0.1) {
+                  // Monthly format
+                  const month = Math.round(fraction * 12) || 0;
+                  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                  return `${months[month - 1] || 'Jan'} ${year}`;
+                } else {
+                  // Daily format
+                  const dayOfYear = Math.round(fraction * 365);
+                  const date = new Date(year, 0, dayOfYear);
+                  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                }
+              }
+              return year.toString();
+            }}
             tickMargin={10}
             minTickGap={30}
+            interval={Math.floor(Math.max(0, chartData.length / 12))}
           />
           <YAxis 
             domain={[minVal, maxVal]}
@@ -109,21 +172,7 @@ export function ClimateChart({ historical, forecast, variableName }: ClimateChar
             tickFormatter={(value) => value.toFixed(1)}
             width={60}
           />
-          <Tooltip
-            contentStyle={{ 
-              backgroundColor: 'hsl(var(--card))', 
-              borderColor: 'hsl(var(--border))',
-              borderRadius: '0.75rem',
-              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.1)'
-            }}
-            itemStyle={{ color: 'hsl(var(--foreground))' }}
-            labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem', fontWeight: 'bold' }}
-            formatter={(value: any, name: string) => {
-              if (name === 'confidenceArea') return null;
-              const formattedName = name === 'actual' ? 'Historical' : name === 'forecast' ? 'Forecast' : name;
-              return [Number(value).toFixed(2), formattedName];
-            }}
-          />
+          <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '20px' }} />
           
           {/* Confidence Interval Area */}

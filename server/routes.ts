@@ -29,7 +29,7 @@ export async function registerRoutes(
   app.post(api.climate.forecast.path, async (req, res) => {
     try {
       const input: ForecastRequest = api.climate.forecast.input.parse(req.body);
-      const { variable, region, horizon } = input;
+      const { variable, region = 'global', horizon } = input;
       
       const historical = await storage.getSeries(variable, region);
       
@@ -76,6 +76,29 @@ export async function registerRoutes(
     });
   });
 
+  // Indian weather endpoints
+  app.get('/api/weather/latest', async (req, res) => {
+    try {
+      const city = req.query.city as string | undefined;
+      const weatherData = await storage.getLatestWeather(city);
+      res.json(weatherData);
+    } catch (error) {
+      console.error('Error fetching latest weather:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/weather/latest/:city', async (req, res) => {
+    try {
+      const { city } = req.params;
+      const weatherData = await storage.getLatestWeather(city);
+      res.json(weatherData);
+    } catch (error) {
+      console.error('Error fetching latest weather:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   await seedDatabase();
 
   return httpServer;
@@ -87,8 +110,8 @@ function generateForecast(historical: { year: number; value: number }[], horizon
   const lastYear = historical[historical.length - 1].year;
   const lastValue = historical[historical.length - 1].value;
   
-  const recentValues = historical.slice(-10).map(d => d.value);
-  const avgValue = recentValues.reduce((a, b) => a + b, 0) / recentValues.length;
+  const recentValues = historical.slice(-10).map(d => d.value).filter(v => !isNaN(v) && v != null);
+  const avgValue = recentValues.length > 0 ? recentValues.reduce((a, b) => a + b, 0) / recentValues.length : lastValue || 15;
   
   let trend = 0;
   if (historical.length >= 2) {
@@ -97,7 +120,7 @@ function generateForecast(historical: { year: number; value: number }[], horizon
   }
   
   const variableTrendMultipliers: Record<string, number> = {
-    'temperature': 1.2,
+    'temperature': 0.15,
     'co2': 1.5,
     'sea_level': 1.3
   };
@@ -108,20 +131,25 @@ function generateForecast(historical: { year: number; value: number }[], horizon
   const forecast: ForecastPoint[] = [];
   const baseUncertainty = Math.abs(avgValue * 0.05);
   
+  // For next day (horizon = 1), predict with reduced uncertainty
   for (let i = 1; i <= horizon; i++) {
-    const yearForecast = lastYear + i;
-    const trendComponent = trend * i;
+    const dayForecast = lastYear + (i / 365);
+    const trendComponent = trend * (i / 12); // Reduce trend component for daily forecast
     const seasonalNoise = Math.sin(i * 0.5) * (avgValue * 0.02);
-    const randomNoise = (Math.random() - 0.5) * (avgValue * 0.01);
+    const randomNoise = (Math.random() - 0.5) * (avgValue * 0.005);
     
     const predictedValue = lastValue + trendComponent + seasonalNoise + randomNoise;
     const uncertainty = baseUncertainty * Math.sqrt(i);
     
+    const value = isNaN(predictedValue) ? lastValue : predictedValue;
+    const lower = isNaN(predictedValue - uncertainty * 1.96) ? value * 0.95 : predictedValue - uncertainty * 1.96;
+    const upper = isNaN(predictedValue + uncertainty * 1.96) ? value * 1.05 : predictedValue + uncertainty * 1.96;
+    
     forecast.push({
-      year: yearForecast,
-      value: predictedValue,
-      lowerBound: predictedValue - uncertainty * 1.96,
-      upperBound: predictedValue + uncertainty * 1.96
+      year: dayForecast,
+      value: value,
+      lowerBound: lower,
+      upperBound: upper
     });
   }
   

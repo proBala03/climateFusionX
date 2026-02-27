@@ -1,62 +1,64 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Activity, AlertTriangle, ArrowLeft, BarChart3, Database, Loader2, ThermometerSun, Zap } from "lucide-react";
+import { Activity, ArrowLeft, BarChart3, Loader2, ThermometerSun, Zap } from "lucide-react";
 import { Link } from "wouter";
 
 import { useForecast } from "@/hooks/use-climate";
+import { useLatestWeather } from "@/hooks/use-latest-weather";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/Button";
 import { Select } from "@/components/Select";
 import { ClimateChart } from "@/components/ClimateChart";
+import { ClimateBackground } from "@/components/ClimateBackground";
 
 const VARIABLE_OPTIONS = [
   { label: "Temperature Anomaly (°C)", value: "temperature" },
-  { label: "CO2 Concentration (ppm)", value: "co2" },
-  { label: "Sea Level Rise (mm)", value: "sea_level" },
 ];
 
-const REGION_OPTIONS = [
-  { label: "Global Average", value: "global" },
-  { label: "United States", value: "usa" },
-  { label: "India", value: "india" },
-  { label: "United Kingdom", value: "uk" },
-  { label: "France", value: "france" },
-  { label: "Germany", value: "germany" },
-  { label: "China", value: "china" },
-  { label: "Argentina", value: "argentina" },
-  { label: "South Africa", value: "south africa" },
-  { label: "Australia", value: "australia" },
-  { label: "Indonesia", value: "indonesia" },
-  { label: "Brazil", value: "brazil" },
-  { label: "Russia", value: "russia" },
-  { label: "Canada", value: "canada" },
-  { label: "Japan", value: "japan" },
-  { label: "Mexico", value: "mexico" },
-];
+
 
 const HORIZON_OPTIONS = [
-  { label: "12 Years", value: 12 },
-  { label: "24 Years", value: 24 },
-  { label: "36 Years", value: 36 },
+  { label: "1 Year (365 Days)", value: 365 },
+];
+
+const CITY_OPTIONS = [
+  { label: "Mumbai", value: "Mumbai" },
+  { label: "Delhi", value: "Delhi" },
+  { label: "Bengaluru", value: "Bengaluru" },
+  { label: "Chennai", value: "Chennai" },
+  { label: "Kolkata", value: "Kolkata" },
+  { label: "Hyderabad", value: "Hyderabad" },
+  { label: "Ahmedabad", value: "Ahmedabad" },
+  { label: "Jaipur", value: "Jaipur" },
+  { label: "Lucknow", value: "Lucknow" },
+  { label: "Bhopal", value: "Bhopal" },
 ];
 
 export default function Dashboard() {
   const [variable, setVariable] = useState("temperature");
-  const [region, setRegion] = useState("global");
-  const [horizon, setHorizon] = useState(24);
+  const [horizon, setHorizon] = useState(365);
+  const [selectedCity, setSelectedCity] = useState("Mumbai");
 
   const forecastMutation = useForecast();
+  const { condition, data, isLoading } = useLatestWeather(selectedCity);
 
-  // Trigger initial fetch and on parameter changes
+  // Trigger initial fetch
   useEffect(() => {
     handleGenerate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Regenerate forecast when horizon changes
+  useEffect(() => {
+    if (horizon !== 365) {
+      handleGenerate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [horizon]);
+
   const handleGenerate = () => {
     forecastMutation.mutate({
       variable,
-      region,
       horizon: Number(horizon),
       model: "ensemble",
     });
@@ -65,8 +67,6 @@ export default function Dashboard() {
   const getVariableIcon = () => {
     switch (variable) {
       case "temperature": return <ThermometerSun className="w-5 h-5 text-primary" />;
-      case "co2": return <AlertTriangle className="w-5 h-5 text-secondary" />;
-      case "sea_level": return <Database className="w-5 h-5 text-primary" />;
       default: return <BarChart3 className="w-5 h-5" />;
     }
   };
@@ -75,9 +75,12 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen relative p-4 md:p-8">
+      {/* Climate animated background */}
+      <ClimateBackground condition={condition} isLoading={isLoading} />
+
       {/* Background gradients */}
-      <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rotate-[12deg] bg-secondary/35 border-2 border-border neo-shadow-lg -z-10" />
-      <div className="pointer-events-none absolute -bottom-28 -left-28 h-80 w-80 rotate-[-10deg] bg-primary/30 border-2 border-border neo-shadow-lg -z-10" />
+      <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rotate-[12deg] bg-secondary/35 border-2 border-border neo-shadow-lg -z-20" />
+      <div className="pointer-events-none absolute -bottom-28 -left-28 h-80 w-80 rotate-[-10deg] bg-primary/30 border-2 border-border neo-shadow-lg -z-20" />
 
       <div className="max-w-7xl mx-auto space-y-8">
         
@@ -113,23 +116,23 @@ export default function Dashboard() {
           >
             <GlassCard className="p-6">
               <h2 className="text-lg font-display font-black mb-6 flex items-center gap-2 border-b-2 border-border pb-4">
-                <Database className="w-5 h-5 text-foreground" />
+                <BarChart3 className="w-5 h-5 text-foreground" />
                 Model Parameters
               </h2>
               
               <div className="space-y-5">
                 <Select 
+                  label="Indian City"
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  options={CITY_OPTIONS}
+                />
+
+                <Select 
                   label="Climate Variable"
                   value={variable}
                   onChange={(e) => setVariable(e.target.value)}
                   options={VARIABLE_OPTIONS}
-                />
-                
-                <Select 
-                  label="Region"
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
-                  options={REGION_OPTIONS}
                 />
                 
                 <Select 
@@ -160,6 +163,44 @@ export default function Dashboard() {
                 </div>
               </div>
             </GlassCard>
+
+            {/* Current Weather Card */}
+            {data && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <GlassCard className="p-6">
+                  <h3 className="text-lg font-display font-black mb-4 flex items-center gap-2 border-b-2 border-border pb-3">
+                    <ThermometerSun className="w-5 h-5 text-foreground" />
+                    Current Weather
+                  </h3>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Location</span>
+                      <span className="font-semibold">{data.city}, {data.state}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Avg Temp</span>
+                      <span className="font-semibold">{data.avgTemp.toFixed(1)}°C</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Humidity</span>
+                      <span className="font-semibold">{data.humidity.toFixed(0)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Rainfall</span>
+                      <span className="font-semibold">{data.rainfall.toFixed(1)}mm</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Condition</span>
+                      <span className="font-semibold">{condition}</span>
+                    </div>
+                  </div>
+                </GlassCard>
+              </motion.div>
+            )}
           </motion.div>
 
           {/* Main Visuals */}
@@ -230,7 +271,7 @@ export default function Dashboard() {
                         {getVariableLabel()} Projection
                       </h2>
                       <p className="text-sm text-muted-foreground capitalize">
-                        {REGION_OPTIONS.find(r => r.value === region)?.label} Region • {horizon} Year Horizon
+                        {horizon} Year Horizon
                       </p>
                     </div>
                   </div>
@@ -244,7 +285,7 @@ export default function Dashboard() {
                     </div>
                   ) : forecastMutation.isError ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-destructive">
-                      <AlertTriangle className="w-12 h-12 mb-4" />
+                      <Zap className="w-12 h-12 mb-4" />
                       <p className="font-medium">Failed to generate forecast</p>
                       <p className="text-sm opacity-80 mt-1">{forecastMutation.error.message}</p>
                       <Button className="mt-4" variant="outline" onClick={handleGenerate}>Try Again</Button>

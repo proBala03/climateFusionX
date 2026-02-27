@@ -18,7 +18,7 @@ export type InsertClimateData = z.infer<typeof insertClimateDataSchema>;
 // Request/Response types
 export const forecastRequestSchema = z.object({
   variable: z.string(),
-  region: z.string(),
+  region: z.string().optional(),
   horizon: z.number(), // e.g., 12, 24, 36 (treated as years/months)
   model: z.string().optional().default('ensemble'),
 });
