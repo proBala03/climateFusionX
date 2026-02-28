@@ -162,6 +162,44 @@ export async function registerRoutes(
     }
   });
 
+  app.get('/api/weather/forecast', async (req, res) => {
+    try {
+      const city = req.query.city as string | undefined;
+      const daysParam = req.query.days != null ? Number(req.query.days) : 7;
+      const days = Math.min(14, Math.max(1, Number.isInteger(daysParam) ? daysParam : 7));
+
+      if (!city || typeof city !== 'string' || city.trim() === '') {
+        return res.status(400).json({ message: 'Query parameter "city" is required' });
+      }
+
+      const forecast = await storage.getWeatherForecast(city.trim(), days);
+      res.json(forecast);
+    } catch (error) {
+      console.error('Error fetching weather forecast:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/weather/year', async (req, res) => {
+    try {
+      const city = req.query.city as string | undefined;
+      const year = req.query.year != null ? Number(req.query.year) : NaN;
+
+      if (!city || typeof city !== 'string' || city.trim() === '') {
+        return res.status(400).json({ message: 'Query parameter "city" is required' });
+      }
+      if (!Number.isInteger(year) || year < 2020 || year > 2030) {
+        return res.status(400).json({ message: 'Query parameter "year" must be an integer between 2020 and 2030' });
+      }
+
+      const summary = await storage.getWeatherYearSummary(city.trim(), year);
+      res.json(summary);
+    } catch (error) {
+      console.error('Error fetching weather year summary:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   await seedDatabase();
 
   return httpServer;

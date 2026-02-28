@@ -12,6 +12,12 @@ export interface DailyWeatherPoint {
   date: string;
   avgTemp: number;
   rainfall: number;
+  minTemp?: number;
+  maxTemp?: number;
+  humidity?: number;
+  aqi?: number;
+  windSpeed?: number;
+  cloudCover?: number;
 }
 
 interface UseWeatherByMonthResult {
@@ -84,10 +90,16 @@ export function useWeatherByMonthYear(
         setCondition(climateCondition);
         setDisplayCity(formatted.city);
         setDaily(
-          dailyList.map((d: { date?: string; avgTemp?: number; rainfall?: number }) => ({
-            date: d.date ?? "",
+          dailyList.map((d: Record<string, unknown>) => ({
+            date: String(d.date ?? ""),
             avgTemp: Number(d.avgTemp ?? 0),
             rainfall: Number(d.rainfall ?? 0),
+            minTemp: d.minTemp != null ? Number(d.minTemp) : undefined,
+            maxTemp: d.maxTemp != null ? Number(d.maxTemp) : undefined,
+            humidity: d.humidity != null ? Number(d.humidity) : undefined,
+            aqi: d.aqi != null ? Number(d.aqi) : undefined,
+            windSpeed: d.windSpeed != null ? Number(d.windSpeed) : undefined,
+            cloudCover: d.cloudCover != null ? Number(d.cloudCover) : undefined,
           }))
         );
       } catch (err) {

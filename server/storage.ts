@@ -18,6 +18,22 @@ export interface IndianWeatherData {
   cloudCover: number;
 }
 
+export interface WeatherForecastDay {
+  date: string;
+  avgTemp: number;
+  minTemp: number;
+  maxTemp: number;
+  rainfall: number;
+  aqi: number;
+}
+
+export interface MonthSummary {
+  month: number;
+  avgTemp: number;
+  totalRainfall: number;
+  avgAqi: number;
+}
+
 export interface IStorage {
   getSeries(variable: string, region: string): Promise<DataPoint[]>;
   insertClimateData(data: InsertClimateData): Promise<ClimateData>;
@@ -26,6 +42,8 @@ export interface IStorage {
   getLatestWeather(city?: string): Promise<IndianWeatherData | IndianWeatherData[]>;
   getWeatherByMonthYear(city: string, year: number, month: number): Promise<IndianWeatherData[]>;
   getWeatherByDateRange(city: string, from: string, to: string): Promise<IndianWeatherData[]>;
+  getWeatherForecast(city: string, days: number): Promise<WeatherForecastDay[]>;
+  getWeatherYearSummary(city: string, year: number): Promise<MonthSummary[]>;
 }
 
 // In-memory storage implementation
@@ -273,6 +291,83 @@ class InMemoryStorage implements IStorage {
       const date = row.date;
       return date >= from && date <= to;
     });
+  }
+
+  async getWeatherForecast(city: string, days: number): Promise<WeatherForecastDay[]> {
+    const cityKey = city.toLowerCase();
+    const cityData = this.indianWeatherData.get(cityKey);
+    if (!cityData || cityData.length === 0) {
+      return this.generateSyntheticForecast(city, days, null);
+    }
+    const sorted = [...cityData].sort((a, b) => b.date.localeCompare(a.date));
+    const lastWeek = sorted.slice(0, Math.min(7, sorted.length));
+    return this.generateSyntheticForecast(city, days, lastWeek);
+  }
+
+  private generateSyntheticForecast(
+    city: string,
+    days: number,
+    lastWeek: IndianWeatherData[] | null
+  ): WeatherForecastDay[] {
+    const result: WeatherForecastDay[] = [];
+    let baseDate: Date;
+    let avgT = 28;
+    let minT = 22;
+    let maxT = 34;
+    let rain = 0;
+    let aqi = 80;
+
+    if (lastWeek && lastWeek.length > 0) {
+      const n = lastWeek.length;
+      avgT = lastWeek.reduce((s, d) => s + d.avgTemp, 0) / n;
+      minT = lastWeek.reduce((s, d) => s + d.minTemp, 0) / n;
+      maxT = lastWeek.reduce((s, d) => s + d.maxTemp, 0) / n;
+      rain = lastWeek.reduce((s, d) => s + d.rainfall, 0) / n;
+      aqi = lastWeek.reduce((s, d) => s + d.aqi, 0) / n;
+      const lastDate = new Date(lastWeek[lastWeek.length - 1].date);
+      baseDate = new Date(lastDate);
+      baseDate.setDate(baseDate.getDate() + 1);
+    } else {
+      baseDate = new Date();
+      baseDate.setDate(baseDate.getDate() + 1);
+    }
+
+    const pad = (n: number) => String(n).padStart(2, "0");
+    for (let i = 0; i < days; i++) {
+      const d = new Date(baseDate);
+      d.setDate(d.getDate() + i);
+      const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const delta = () => (Math.random() - 0.5) * 1;
+      result.push({
+        date: dateStr,
+        avgTemp: Math.round((avgT + delta()) * 10) / 10,
+        minTemp: Math.round((minT + delta()) * 10) / 10,
+        maxTemp: Math.round((maxT + delta()) * 10) / 10,
+        rainfall: Math.max(0, Math.round((rain + Math.random() * 2) * 10) / 10),
+        aqi: Math.round(aqi + (Math.random() - 0.5) * 20),
+      });
+    }
+    return result;
+  }
+
+  async getWeatherYearSummary(city: string, year: number): Promise<MonthSummary[]> {
+    const result: MonthSummary[] = [];
+    for (let month = 1; month <= 12; month++) {
+      const daily = await this.getWeatherByMonthYear(city, year, month);
+      if (daily.length === 0) {
+        result.push({ month, avgTemp: 0, totalRainfall: 0, avgAqi: 0 });
+        continue;
+      }
+      const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
+      const avg = (arr: number[]) => (arr.length ? sum(arr) / arr.length : 0);
+      result.push({
+        month,
+        avgTemp: avg(daily.map((d) => d.avgTemp)),
+        totalRainfall: sum(daily.map((d) => d.rainfall)),
+        avgAqi: avg(daily.map((d) => d.aqi)),
+      });
+    }
+    return result;
   }
 }
 

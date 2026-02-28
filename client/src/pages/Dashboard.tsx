@@ -7,12 +7,24 @@ import { useForecast } from "@/hooks/use-climate";
 import { useLatestWeather } from "@/hooks/use-latest-weather";
 import { useWeatherByMonthYear } from "@/hooks/use-weather-by-month";
 import { useWeatherByRange } from "@/hooks/use-weather-by-range";
+import { useWeatherForecast } from "@/hooks/use-weather-forecast";
+import { useWeatherYearSummary } from "@/hooks/use-weather-year-summary";
+import { useClimateSeries } from "@/hooks/use-climate-series";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/Button";
 import { Select } from "@/components/Select";
 import { ClimateChart } from "@/components/ClimateChart";
 import { ClimateBackground } from "@/components/ClimateBackground";
 import { WeatherDailyChart } from "@/components/WeatherDailyChart";
+import { AqiDailyChart } from "@/components/AqiDailyChart";
+import { TempBandChart } from "@/components/TempBandChart";
+import { MonthlyBarChart } from "@/components/MonthlyBarChart";
+import { CompareCitiesChart } from "@/components/CompareCitiesChart";
+import { HumidityRainfallChart } from "@/components/HumidityRainfallChart";
+import { ClimateVariableComparisonChart } from "@/components/ClimateVariableComparisonChart";
+import { SeasonCompareChart } from "@/components/SeasonCompareChart";
+import { RainfallHistogramChart } from "@/components/RainfallHistogramChart";
+import { WindCloudChart } from "@/components/WindCloudChart";
 import { exportChartToCsv, exportWeatherToCsv } from "@/lib/csv-export";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -158,6 +170,20 @@ export default function Dashboard() {
     Number(selectedYear),
     Number(selectedMonth)
   );
+
+  const weatherForecast = useWeatherForecast(selectedCity, 7);
+  const weatherYearSummary = useWeatherYearSummary(selectedCity, Number(selectedYear));
+
+  const seasonRangeLastYear = getSeasonRange(seasonPreset, String(Number(selectedYear) - 1));
+  const rangeWeatherLastYear = useWeatherByRange(
+    selectedCity,
+    seasonRangeLastYear?.from ?? "",
+    seasonRangeLastYear?.to ?? ""
+  );
+
+  const climateTemp = useClimateSeries("temperature", region);
+  const climateCo2 = useClimateSeries("co2", region);
+  const climateSeaLevel = useClimateSeries("sea_level", region);
 
   const lastYear = Number(selectedYear) - 1;
   const monthWeatherLastYear = useWeatherByMonthYear(
@@ -461,6 +487,32 @@ export default function Dashboard() {
               </GlassCard>
             </motion.div>
 
+            {/* 7-day outlook */}
+            {weatherForecast.data.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.21 }}
+              >
+                <GlassCard className="p-4">
+                  <h3 className="text-sm font-display font-black mb-3 border-b border-border pb-2">7-day outlook</h3>
+                  {weatherForecast.isLoading ? (
+                    <p className="text-xs text-muted-foreground">Loading…</p>
+                  ) : (
+                    <ul className="space-y-2 text-xs">
+                      {weatherForecast.data.map((day) => (
+                        <li key={day.date} className="flex justify-between items-center">
+                          <span className="text-muted-foreground">{day.date.slice(5)}</span>
+                          <span className="font-semibold">{day.avgTemp.toFixed(1)}°C</span>
+                          <span className="text-muted-foreground">{day.rainfall.toFixed(0)} mm</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </GlassCard>
+              </motion.div>
+            )}
+
             {!isCurrentWeather && !isSeasonMode && compareCity && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -672,6 +724,104 @@ export default function Dashboard() {
                   </div>
                   <WeatherDailyChart daily={weatherDaily} />
                 </GlassCard>
+              </motion.div>
+            )}
+
+            {/* Weather insights / Charts */}
+            {(weatherDaily.length > 0 || weatherYearSummary.data.length > 0 || (compareCity && monthWeather.daily.length > 0 && monthWeatherCompare.daily.length > 0) || (climateTemp.data.length > 0 && climateCo2.data.length > 0 && climateSeaLevel.data.length > 0) || (isSeasonMode && rangeWeather.data && rangeWeatherLastYear.data)) && (
+              <motion.div
+                className="space-y-6"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.26 }}
+              >
+                <h3 className="text-lg font-display font-black border-b-2 border-border pb-2">Weather insights</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {weatherDaily.length > 0 && weatherDaily.some((d) => d.aqi != null) && (
+                    <GlassCard className="p-4">
+                      <h4 className="text-sm font-semibold mb-2">AQI daily</h4>
+                      <AqiDailyChart daily={weatherDaily} />
+                    </GlassCard>
+                  )}
+                  {weatherDaily.length > 0 && weatherDaily.some((d) => d.minTemp != null || d.maxTemp != null) && (
+                    <GlassCard className="p-4">
+                      <h4 className="text-sm font-semibold mb-2">Temp band (min–max)</h4>
+                      <TempBandChart daily={weatherDaily} />
+                    </GlassCard>
+                  )}
+                  {weatherDaily.length > 0 && weatherDaily.some((d) => d.humidity != null) && (
+                    <GlassCard className="p-4">
+                      <h4 className="text-sm font-semibold mb-2">Humidity & rainfall</h4>
+                      <HumidityRainfallChart daily={weatherDaily} />
+                    </GlassCard>
+                  )}
+                  {weatherDaily.length > 0 && (
+                    <GlassCard className="p-4">
+                      <h4 className="text-sm font-semibold mb-2">Rainfall histogram</h4>
+                      <RainfallHistogramChart daily={weatherDaily} />
+                    </GlassCard>
+                  )}
+                  {weatherDaily.length > 0 && weatherDaily.some((d) => d.windSpeed != null || d.cloudCover != null) && (
+                    <GlassCard className="p-4">
+                      <h4 className="text-sm font-semibold mb-2">Wind & cloud</h4>
+                      <WindCloudChart daily={weatherDaily} />
+                    </GlassCard>
+                  )}
+                  {weatherYearSummary.data.length > 0 && (
+                    <GlassCard className="p-4">
+                      <h4 className="text-sm font-semibold mb-2">Monthly summary {selectedYear}</h4>
+                      <MonthlyBarChart data={weatherYearSummary.data} metric="avgTemp" />
+                    </GlassCard>
+                  )}
+                  {weatherYearSummary.data.length > 0 && (
+                    <GlassCard className="p-4">
+                      <h4 className="text-sm font-semibold mb-2">Monthly rainfall {selectedYear}</h4>
+                      <MonthlyBarChart data={weatherYearSummary.data} metric="totalRainfall" />
+                    </GlassCard>
+                  )}
+                  {compareCity && monthWeather.daily.length > 0 && monthWeatherCompare.daily.length > 0 && (
+                    <GlassCard className="p-4 md:col-span-2">
+                      <h4 className="text-sm font-semibold mb-2">Compare cities</h4>
+                      <CompareCitiesChart
+                        dailyA={monthWeather.daily}
+                        dailyB={monthWeatherCompare.daily}
+                        cityA={selectedCity}
+                        cityB={compareCity}
+                      />
+                    </GlassCard>
+                  )}
+                  {climateTemp.data.length > 0 && climateCo2.data.length > 0 && climateSeaLevel.data.length > 0 && (
+                    <GlassCard className="p-4 md:col-span-2">
+                      <h4 className="text-sm font-semibold mb-2">Climate variables (normalized)</h4>
+                      <ClimateVariableComparisonChart
+                        temperature={climateTemp.data}
+                        co2={climateCo2.data}
+                        seaLevel={climateSeaLevel.data}
+                      />
+                    </GlassCard>
+                  )}
+                  {isSeasonMode && rangeWeather.data && rangeWeatherLastYear.data && (
+                    <GlassCard className="p-4 md:col-span-2">
+                      <h4 className="text-sm font-semibold mb-2">Season comparison</h4>
+                      <SeasonCompareChart
+                        summaries={[
+                          {
+                            label: seasonPreset === "monsoon" ? `Monsoon ${lastYear}` : `Winter ${lastYear}–${Number(selectedYear)}`,
+                            avgTemp: rangeWeatherLastYear.data.avgTemp,
+                            totalRainfall: rangeWeatherLastYear.data.rainfall,
+                            avgAqi: rangeWeatherLastYear.data.aqi ?? 0,
+                          },
+                          {
+                            label: seasonPreset === "monsoon" ? `Monsoon ${selectedYear}` : `Winter ${selectedYear}–${Number(selectedYear) + 1}`,
+                            avgTemp: rangeWeather.data.avgTemp,
+                            totalRainfall: rangeWeather.data.rainfall,
+                            avgAqi: rangeWeather.data.aqi ?? 0,
+                          },
+                        ]}
+                      />
+                    </GlassCard>
+                  )}
+                </div>
               </motion.div>
             )}
 
