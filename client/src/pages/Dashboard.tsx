@@ -1,21 +1,30 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Activity, ArrowLeft, BarChart3, Loader2, ThermometerSun, Zap } from "lucide-react";
+import { Activity, ArrowLeft, BarChart3, Download, Loader2, ThermometerSun, Zap } from "lucide-react";
 import { Link } from "wouter";
 
 import { useForecast } from "@/hooks/use-climate";
+import { useLatestWeather } from "@/hooks/use-latest-weather";
 import { useWeatherByMonthYear } from "@/hooks/use-weather-by-month";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/Button";
 import { Select } from "@/components/Select";
 import { ClimateChart } from "@/components/ClimateChart";
 import { ClimateBackground } from "@/components/ClimateBackground";
+import { WeatherDailyChart } from "@/components/WeatherDailyChart";
+import { exportChartToCsv, exportWeatherToCsv } from "@/lib/csv-export";
 
 const VARIABLE_OPTIONS = [
   { label: "Temperature Anomaly (°C)", value: "temperature" },
+  { label: "CO2 (ppm)", value: "co2" },
+  { label: "Sea Level (mm)", value: "sea_level" },
 ];
 
-
+const REGION_OPTIONS = [
+  { label: "Global", value: "global" },
+  { label: "India", value: "india" },
+  { label: "USA", value: "usa" },
+];
 
 const HORIZON_OPTIONS = [
   { label: "1 Year (365 Days)", value: 365 },
@@ -54,26 +63,36 @@ const YEAR_OPTIONS = [
   { label: "2025", value: "2025" },
 ];
 
+const WEATHER_SOURCE_OPTIONS = [
+  { label: "Current (latest)", value: "current" },
+  { label: "Month / Year", value: "month" },
+];
+
 const currentMonth = new Date().getMonth() + 1;
 
 export default function Dashboard() {
   const [variable, setVariable] = useState("temperature");
+  const [region, setRegion] = useState("global");
   const [horizon, setHorizon] = useState(365);
   const [selectedCity, setSelectedCity] = useState("Mumbai");
+  const [weatherSource, setWeatherSource] = useState<"current" | "month">("month");
   const [selectedMonth, setSelectedMonth] = useState(String(currentMonth));
   const [selectedYear, setSelectedYear] = useState("2025");
 
   const forecastMutation = useForecast();
-  const {
-    condition,
-    data,
-    isLoading,
-    error: weatherError,
-  } = useWeatherByMonthYear(
+  const latestWeather = useLatestWeather(selectedCity);
+  const monthWeather = useWeatherByMonthYear(
     selectedCity,
     Number(selectedYear),
     Number(selectedMonth)
   );
+
+  const isCurrentWeather = weatherSource === "current";
+  const condition = isCurrentWeather ? latestWeather.condition : monthWeather.condition;
+  const data = isCurrentWeather ? latestWeather.data : monthWeather.data;
+  const weatherError = isCurrentWeather ? latestWeather.error : monthWeather.error;
+  const isLoading = isCurrentWeather ? latestWeather.isLoading : monthWeather.isLoading;
+  const weatherDaily = monthWeather.daily;
 
   // Trigger initial fetch
   useEffect(() => {
@@ -92,6 +111,7 @@ export default function Dashboard() {
   const handleGenerate = () => {
     forecastMutation.mutate({
       variable,
+      region,
       horizon: Number(horizon),
       model: "ensemble",
     });
@@ -100,11 +120,14 @@ export default function Dashboard() {
   const getVariableIcon = () => {
     switch (variable) {
       case "temperature": return <ThermometerSun className="w-5 h-5 text-primary" />;
+      case "co2": return <BarChart3 className="w-5 h-5 text-primary" />;
+      case "sea_level": return <BarChart3 className="w-5 h-5 text-primary" />;
       default: return <BarChart3 className="w-5 h-5" />;
     }
   };
 
   const getVariableLabel = () => VARIABLE_OPTIONS.find(o => o.value === variable)?.label || variable;
+  const getRegionLabel = () => REGION_OPTIONS.find(o => o.value === region)?.label || region;
 
   return (
     <div className="min-h-screen relative p-4 md:p-8">
@@ -162,10 +185,18 @@ export default function Dashboard() {
                 />
 
                 <Select
+                  label="Weather"
+                  value={weatherSource}
+                  onChange={(e) => setWeatherSource((e.target.value === "current" ? "current" : "month"))}
+                  options={WEATHER_SOURCE_OPTIONS}
+                />
+
+                <Select
                   label="Month"
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
                   options={MONTH_OPTIONS}
+                  disabled={isCurrentWeather}
                 />
 
                 <Select
@@ -173,6 +204,7 @@ export default function Dashboard() {
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
                   options={YEAR_OPTIONS}
+                  disabled={isCurrentWeather}
                 />
 
                 <Select 
@@ -180,6 +212,13 @@ export default function Dashboard() {
                   value={variable}
                   onChange={(e) => setVariable(e.target.value)}
                   options={VARIABLE_OPTIONS}
+                />
+
+                <Select
+                  label="Region"
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  options={REGION_OPTIONS}
                 />
                 
                 <Select 
@@ -220,7 +259,9 @@ export default function Dashboard() {
               <GlassCard className="p-6">
                 <h3 className="text-lg font-display font-black mb-4 flex items-center gap-2 border-b-2 border-border pb-3">
                   <ThermometerSun className="w-5 h-5 text-foreground" />
-                  Weather for {MONTH_OPTIONS.find((o) => o.value === selectedMonth)?.label ?? selectedMonth} {selectedYear}
+                  {isCurrentWeather
+                    ? "Current Weather"
+                    : `Weather for ${MONTH_OPTIONS.find((o) => o.value === selectedMonth)?.label ?? selectedMonth} ${selectedYear}`}
                 </h3>
                 {isLoading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
@@ -230,7 +271,9 @@ export default function Dashboard() {
                 ) : weatherError ? (
                   <p className="text-sm text-destructive py-2">{weatherError}</p>
                 ) : !data ? (
-                  <p className="text-sm text-muted-foreground py-2">No data for this month.</p>
+                  <p className="text-sm text-muted-foreground py-2">
+                    {isCurrentWeather ? "No weather data." : "No data for this month."}
+                  </p>
                 ) : (
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
@@ -327,10 +370,26 @@ export default function Dashboard() {
                         {getVariableLabel()} Projection
                       </h2>
                       <p className="text-sm text-muted-foreground capitalize">
-                        {horizon} Year Horizon
+                        {getRegionLabel()} · {horizon} Year Horizon
                       </p>
                     </div>
                   </div>
+                  {forecastMutation.data && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        exportChartToCsv(
+                          forecastMutation.data!.historical,
+                          forecastMutation.data!.forecast,
+                          `climate-forecast-${variable}-${region}.csv`
+                        )
+                      }
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Export CSV
+                    </Button>
+                  )}
                 </div>
 
                 <div className="flex-grow relative">
@@ -360,6 +419,34 @@ export default function Dashboard() {
                 </div>
               </GlassCard>
             </motion.div>
+
+            {!isCurrentWeather && weatherDaily.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+              >
+                <GlassCard className="p-6">
+                  <div className="flex items-center justify-between mb-3 border-b-2 border-border pb-4">
+                    <h3 className="text-lg font-display font-black">Daily weather</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        exportWeatherToCsv(
+                          weatherDaily,
+                          `weather-${selectedCity}-${selectedYear}-${selectedMonth}.csv`
+                        )
+                      }
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Export CSV
+                    </Button>
+                  </div>
+                  <WeatherDailyChart daily={weatherDaily} />
+                </GlassCard>
+              </motion.div>
+            )}
 
           </div>
         </div>

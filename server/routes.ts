@@ -121,7 +121,7 @@ export async function registerRoutes(
       }
 
       const summary = aggregateMonthWeather(daily, year, month);
-      res.json(summary);
+      res.json({ summary, daily });
     } catch (error) {
       console.error('Error fetching weather by month:', error);
       res.status(500).json({ message: 'Internal server error' });

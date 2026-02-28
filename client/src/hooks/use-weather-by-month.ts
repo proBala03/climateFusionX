@@ -8,9 +8,16 @@ import {
   type WeatherData,
 } from "@/lib/climate-utils";
 
+export interface DailyWeatherPoint {
+  date: string;
+  avgTemp: number;
+  rainfall: number;
+}
+
 interface UseWeatherByMonthResult {
   condition: ClimateCondition;
   data: WeatherData | null;
+  daily: DailyWeatherPoint[];
   isLoading: boolean;
   error: string | null;
   city: string;
@@ -23,6 +30,7 @@ export function useWeatherByMonthYear(
 ): UseWeatherByMonthResult {
   const [condition, setCondition] = useState<ClimateCondition>("Partly Cloudy");
   const [data, setData] = useState<WeatherData | null>(null);
+  const [daily, setDaily] = useState<DailyWeatherPoint[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [displayCity, setDisplayCity] = useState(city || "");
@@ -37,6 +45,7 @@ export function useWeatherByMonthYear(
   useEffect(() => {
     if (!enabled) {
       setData(null);
+      setDaily([]);
       setError(null);
       setCondition("Partly Cloudy");
       setDisplayCity(city || "");
@@ -67,17 +76,27 @@ export function useWeatherByMonthYear(
           throw new Error("No weather data received");
         }
         if (cancelled) return;
-        const formatted = formatWeatherData(rawData);
+        const summary = rawData.summary ?? rawData;
+        const dailyList = Array.isArray(rawData.daily) ? rawData.daily : [];
+        const formatted = formatWeatherData(summary);
         const climateCondition = getClimateCondition(formatted);
         setData(formatted);
         setCondition(climateCondition);
         setDisplayCity(formatted.city);
+        setDaily(
+          dailyList.map((d: { date?: string; avgTemp?: number; rainfall?: number }) => ({
+            date: d.date ?? "",
+            avgTemp: Number(d.avgTemp ?? 0),
+            rainfall: Number(d.rainfall ?? 0),
+          }))
+        );
       } catch (err) {
         if (cancelled) return;
         const errorMessage =
           err instanceof Error ? err.message : "Unknown error";
         setError(errorMessage);
         setData(null);
+        setDaily([]);
         console.error("Weather by month fetch error:", err);
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -93,6 +112,7 @@ export function useWeatherByMonthYear(
   return {
     condition,
     data,
+    daily,
     isLoading,
     error,
     city: displayCity,
