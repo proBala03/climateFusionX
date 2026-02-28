@@ -6,11 +6,20 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  Legend,
 } from "recharts";
 import type { DailyWeatherPoint } from "@/hooks/use-weather-by-month";
 
+interface ForecastPoint {
+  date: string;
+  value: number;
+  lowerBound: number;
+  upperBound: number;
+}
+
 interface RainfallHistogramChartProps {
   daily: DailyWeatherPoint[];
+  forecast?: ForecastPoint[];
 }
 
 const BINS = [
@@ -25,27 +34,39 @@ const CustomTooltip = ({
   payload,
 }: {
   active?: boolean;
-  payload?: Array<{ payload?: { bin: string; count: number } }>;
+  payload?: Array<{ payload?: { bin: string; count: number; forecastCount?: number } }>;
 }) => {
   if (!active || !payload?.length) return null;
-  const p = payload[0]?.payload ?? { bin: 0, count: 0 };
+  const p = payload[0]?.payload ?? { bin: "", count: 0, forecastCount: 0 };
   return (
     <div className="bg-card border-2 border-border rounded-lg p-3 shadow-lg text-sm">
       <p className="font-semibold text-foreground">{p.bin}</p>
-      <p className="text-primary">Days: {p.count}</p>
+      <p className="text-primary">Historical Days: {p.count}</p>
+      {p.forecastCount != null && <p className="text-secondary">Forecast Days (est.): {p.forecastCount}</p>}
     </div>
   );
 };
 
-export function RainfallHistogramChart({ daily }: RainfallHistogramChartProps) {
+export function RainfallHistogramChart({ daily, forecast }: RainfallHistogramChartProps) {
   if (!daily.length) return null;
+
+  const hasForecast = forecast && forecast.length > 0;
 
   const chartData = BINS.map((bin) => {
     const count = daily.filter((d) => {
       const r = d.rainfall ?? 0;
       return r >= bin.min && r < bin.max;
     }).length;
-    return { bin: bin.label, count };
+    
+    let forecastCount = 0;
+    if (hasForecast) {
+      forecastCount = Math.round(forecast.reduce((sum, f) => {
+        const r = f.value ?? 0;
+        return r >= bin.min && r < bin.max ? sum + 1 : sum;
+      }, 0) / Math.max(1, (daily.length / forecast.length)));
+    }
+    
+    return { bin: bin.label, count, forecastCount };
   });
 
   return (
@@ -59,12 +80,22 @@ export function RainfallHistogramChart({ daily }: RainfallHistogramChartProps) {
         />
         <YAxis tick={{ fontSize: 10 }} className="text-muted-foreground" />
         <Tooltip content={<CustomTooltip />} />
+        {hasForecast && <Legend wrapperStyle={{ fontSize: 10 }} />}
         <Bar
           dataKey="count"
-          name="Days"
+          name="Historical Days"
           fill="hsl(var(--primary))"
           radius={[4, 4, 0, 0]}
         />
+        {hasForecast && (
+          <Bar
+            dataKey="forecastCount"
+            name="Forecast Days (est.)"
+            fill="hsl(var(--secondary))"
+            radius={[4, 4, 0, 0]}
+            opacity={0.6}
+          />
+        )}
       </BarChart>
     </ResponsiveContainer>
   );

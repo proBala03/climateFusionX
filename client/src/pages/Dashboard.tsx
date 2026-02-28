@@ -12,6 +12,10 @@ import { useWeatherForecastMonth } from "@/hooks/use-weather-forecast-month";
 import { useWeatherForecastYear } from "@/hooks/use-weather-forecast-year";
 import { useWeatherYearSummary } from "@/hooks/use-weather-year-summary";
 import { useClimateSeries } from "@/hooks/use-climate-series";
+import { useWeatherForecastWindCloud } from "@/hooks/use-weather-forecast-wind-cloud";
+import { useWeatherForecastHumidityRainfall } from "@/hooks/use-weather-forecast-humidity-rainfall";
+import { useWeatherForecastRainfallHistogram } from "@/hooks/use-weather-forecast-rainfall-histogram";
+import { useWeatherForecastAqi } from "@/hooks/use-weather-forecast-aqi";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/Button";
 import { Select } from "@/components/Select";
@@ -182,6 +186,11 @@ export default function Dashboard() {
   const weatherForecast = useWeatherForecast(selectedCity, 7);
   const weatherYearSummary = useWeatherYearSummary(selectedCity, Number(selectedYear));
   const forecastYear = useWeatherForecastYear(selectedCity, Number(selectedYear));
+
+  const weatherForecastWindCloud = useWeatherForecastWindCloud(selectedCity, 7);
+  const weatherForecastHumidityRainfall = useWeatherForecastHumidityRainfall(selectedCity, 7);
+  const weatherForecastRainfallHistogram = useWeatherForecastRainfallHistogram(selectedCity, 7);
+  const weatherForecastAqi = useWeatherForecastAqi(selectedCity, 7);
 
   const seasonRangeLastYear = getSeasonRange(seasonPreset, String(Number(selectedYear) - 1));
   const rangeWeatherLastYear = useWeatherByRange(
@@ -822,7 +831,7 @@ export default function Dashboard() {
                   {weatherDaily.length > 0 && weatherDaily.some((d) => d.aqi != null) && (
                     <GlassCard className="p-4">
                       <h4 className="text-sm font-semibold mb-2">AQI daily</h4>
-                      <AqiDailyChart daily={weatherDaily} />
+                      <AqiDailyChart daily={weatherDaily} forecast={weatherForecastAqi.forecast} />
                     </GlassCard>
                   )}
                   {weatherDaily.length > 0 && weatherDaily.some((d) => d.minTemp != null || d.maxTemp != null) && (
@@ -834,19 +843,19 @@ export default function Dashboard() {
                   {weatherDaily.length > 0 && weatherDaily.some((d) => d.humidity != null) && (
                     <GlassCard className="p-4">
                       <h4 className="text-sm font-semibold mb-2">Humidity & rainfall</h4>
-                      <HumidityRainfallChart daily={weatherDaily} />
+                      <HumidityRainfallChart daily={weatherDaily} forecast={weatherForecastHumidityRainfall.forecast} />
                     </GlassCard>
                   )}
                   {weatherDaily.length > 0 && (
                     <GlassCard className="p-4">
                       <h4 className="text-sm font-semibold mb-2">Rainfall histogram</h4>
-                      <RainfallHistogramChart daily={weatherDaily} />
+                      <RainfallHistogramChart daily={weatherDaily} forecast={weatherForecastRainfallHistogram.forecast} />
                     </GlassCard>
                   )}
                   {weatherDaily.length > 0 && weatherDaily.some((d) => d.windSpeed != null || d.cloudCover != null) && (
                     <GlassCard className="p-4">
                       <h4 className="text-sm font-semibold mb-2">Wind & cloud</h4>
-                      <WindCloudChart daily={weatherDaily} />
+                      <WindCloudChart daily={weatherDaily} forecast={weatherForecastWindCloud.forecast} />
                     </GlassCard>
                   )}
                   {yearSummaryForCharts.length > 0 && (

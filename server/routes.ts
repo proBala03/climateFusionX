@@ -275,6 +275,95 @@ export async function registerRoutes(
     }
   });
 
+  // Weather Forecast endpoints
+  app.get('/api/weather/forecast/wind-cloud', async (req, res) => {
+    try {
+      const city = req.query.city as string | undefined;
+      const days = req.query.days != null ? Number(req.query.days) : 7;
+
+      if (!city || typeof city !== 'string' || city.trim() === '') {
+        return res.status(400).json({ message: 'Query parameter "city" is required' });
+      }
+      if (!Number.isInteger(days) || days < 1 || days > 90) {
+        return res.status(400).json({ message: 'Query parameter "days" must be an integer between 1 and 90' });
+      }
+
+      const historical = await storage.getWeatherForecast(city.trim(), days);
+      const forecast = generateWeatherForecast(historical, 'windCloud', days);
+      
+      res.json({ historical, forecast });
+    } catch (error) {
+      console.error('Error fetching wind-cloud forecast:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/weather/forecast/humidity-rainfall', async (req, res) => {
+    try {
+      const city = req.query.city as string | undefined;
+      const days = req.query.days != null ? Number(req.query.days) : 7;
+
+      if (!city || typeof city !== 'string' || city.trim() === '') {
+        return res.status(400).json({ message: 'Query parameter "city" is required' });
+      }
+      if (!Number.isInteger(days) || days < 1 || days > 90) {
+        return res.status(400).json({ message: 'Query parameter "days" must be an integer between 1 and 90' });
+      }
+
+      const historical = await storage.getWeatherForecast(city.trim(), days);
+      const forecast = generateWeatherForecast(historical, 'humidityRainfall', days);
+      
+      res.json({ historical, forecast });
+    } catch (error) {
+      console.error('Error fetching humidity-rainfall forecast:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/weather/forecast/rainfall-histogram', async (req, res) => {
+    try {
+      const city = req.query.city as string | undefined;
+      const days = req.query.days != null ? Number(req.query.days) : 7;
+
+      if (!city || typeof city !== 'string' || city.trim() === '') {
+        return res.status(400).json({ message: 'Query parameter "city" is required' });
+      }
+      if (!Number.isInteger(days) || days < 1 || days > 90) {
+        return res.status(400).json({ message: 'Query parameter "days" must be an integer between 1 and 90' });
+      }
+
+      const historical = await storage.getWeatherForecast(city.trim(), days);
+      const forecast = generateWeatherForecast(historical, 'rainfallHistogram', days);
+      
+      res.json({ historical, forecast });
+    } catch (error) {
+      console.error('Error fetching rainfall histogram forecast:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/weather/forecast/aqi', async (req, res) => {
+    try {
+      const city = req.query.city as string | undefined;
+      const days = req.query.days != null ? Number(req.query.days) : 7;
+
+      if (!city || typeof city !== 'string' || city.trim() === '') {
+        return res.status(400).json({ message: 'Query parameter "city" is required' });
+      }
+      if (!Number.isInteger(days) || days < 1 || days > 90) {
+        return res.status(400).json({ message: 'Query parameter "days" must be an integer between 1 and 90' });
+      }
+
+      const historical = await storage.getWeatherForecast(city.trim(), days);
+      const forecast = generateWeatherForecast(historical, 'aqi', days);
+      
+      res.json({ historical, forecast });
+    } catch (error) {
+      console.error('Error fetching AQI forecast:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   await seedDatabase();
 
   return httpServer;
@@ -327,6 +416,70 @@ function generateForecast(historical: { year: number; value: number }[], horizon
       value: value,
       lowerBound: lower,
       upperBound: upper
+    });
+  }
+
+  return forecast;
+}
+
+interface WeatherForecastPoint {
+  date: string;
+  value: number;
+  lowerBound: number;
+  upperBound: number;
+}
+
+function generateWeatherForecast(historical: any[], variable: string, days: number): WeatherForecastPoint[] {
+  if (historical.length === 0) return [];
+
+  const extractValue = (data: any): number => {
+    switch (variable) {
+      case 'windCloud':
+        return data.windSpeed ?? 0;
+      case 'humidityRainfall':
+        return data.humidity ?? 0;
+      case 'rainfallHistogram':
+        return data.rainfall ?? 0;
+      case 'aqi':
+        return data.aqi ?? 0;
+      default:
+        return 0;
+    }
+  };
+
+  const values = historical.map(h => extractValue(h)).filter(v => !isNaN(v) && v != null);
+  if (values.length === 0) return [];
+
+  const avgValue = values.reduce((a, b) => a + b, 0) / values.length;
+  const lastDate = new Date(historical[historical.length - 1].date);
+  
+  // Calculate trend
+  let trend = 0;
+  if (values.length >= 2) {
+    const recentAvg = values.slice(-5).reduce((a, b) => a + b, 0) / Math.min(5, values.length);
+    const olderAvg = values.slice(0, Math.min(5, values.length)).reduce((a, b) => a + b, 0) / Math.min(5, values.length);
+    trend = (recentAvg - olderAvg) / Math.min(5, values.length);
+  }
+
+  const forecast: WeatherForecastPoint[] = [];
+  const baseUncertainty = Math.abs(avgValue * 0.1);
+
+  for (let i = 1; i <= Math.min(days, 30); i++) {
+    const forecastDate = new Date(lastDate);
+    forecastDate.setDate(forecastDate.getDate() + i);
+    
+    const trendComponent = trend * (i * 0.1);
+    const seasonalNoise = Math.sin(i * 0.3) * (avgValue * 0.05);
+    const randomNoise = (Math.random() - 0.5) * (avgValue * 0.1);
+
+    const predictedValue = Math.max(0, avgValue + trendComponent + seasonalNoise + randomNoise);
+    const uncertainty = baseUncertainty * Math.sqrt(i * 0.5);
+
+    forecast.push({
+      date: forecastDate.toISOString().split('T')[0],
+      value: parseFloat(predictedValue.toFixed(2)),
+      lowerBound: parseFloat(Math.max(0, predictedValue - uncertainty * 1.96).toFixed(2)),
+      upperBound: parseFloat((predictedValue + uncertainty * 1.96).toFixed(2))
     });
   }
 
