@@ -32,6 +32,7 @@ import { SeasonCompareChart } from "@/components/SeasonCompareChart";
 import { RainfallHistogramChart } from "@/components/RainfallHistogramChart";
 import { WindCloudChart } from "@/components/WindCloudChart";
 import { exportChartToCsv, exportWeatherToCsv } from "@/lib/csv-export";
+import { getClimateConditionFromForecast } from "@/lib/climate-utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const VARIABLE_OPTIONS = [
@@ -219,7 +220,12 @@ export default function Dashboard() {
     : isCurrentWeather
       ? latestWeather.condition
       : isForecastYear
-        ? "Forecast"
+        ? forecastMonth.data
+          ? getClimateConditionFromForecast(
+              forecastMonth.data.predictedTotalRainfall,
+              forecastMonth.data.predictedAvgTemp
+            )
+          : "Partly Cloudy"
         : monthWeather.condition;
   const data = isSeasonMode
     ? rangeWeather.data

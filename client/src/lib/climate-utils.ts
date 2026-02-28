@@ -109,6 +109,29 @@ export function getClimateColors(condition: ClimateCondition): {
 }
 
 /**
+ * Determines the climate condition based on forecast data (rainfall and temperature)
+ * Uses similar logic to getClimateCondition but adapted for forecast predictions:
+ * - If predicted rainfall > 5mm → "Rainy"
+ * - If predicted rainfall > 0mm → "Cloudy"
+ * - If predicted rainfall == 0 && predicted avgTemp >= 30 → "Sunny"
+ * - Else → "Partly Cloudy"
+ */
+export function getClimateConditionFromForecast(
+  predictedTotalRainfall: number,
+  predictedAvgTemp: number
+): ClimateCondition {
+  if (predictedTotalRainfall > 5) {
+    return "Rainy";
+  } else if (predictedTotalRainfall > 0) {
+    return "Cloudy";
+  } else if (predictedTotalRainfall === 0 && predictedAvgTemp >= 30) {
+    return "Sunny";
+  } else {
+    return "Partly Cloudy";
+  }
+}
+
+/**
  * Formats weather data from API response
  */
 export function formatWeatherData(raw: any): WeatherData {
