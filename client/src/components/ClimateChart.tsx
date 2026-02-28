@@ -70,35 +70,26 @@ export function ClimateChart({ historical, forecast, variableName }: ClimateChar
     const histData = historical.map(d => ({
       year: d.year,
       actual: d.value,
-      forecast: null,
-      lowerBound: null,
-      upperBound: null,
+      forecast: d.value, // Set forecast to match historical for seamless transition
+      lowerBound: d.value,
+      upperBound: d.value,
+      confidenceArea: [d.value, d.value],
+      isHistorical: true,
     }));
 
-    // Find the last historical point to connect the lines seamlessly
-    const lastHist = histData[histData.length - 1];
-    
     // Format forecast data
     const foreData = forecast.map(d => ({
       year: d.year,
-      actual: null,
+      actual: null, // No actual data for forecast period
       forecast: d.value,
       lowerBound: d.lowerBound,
       upperBound: d.upperBound,
-      confidenceArea: [d.lowerBound, d.upperBound], // For Area range
+      confidenceArea: [d.lowerBound, d.upperBound],
+      isHistorical: false,
     }));
 
-    // Create a bridge point to connect historical actuals to the forecast line
-    const bridgePoint = {
-      year: lastHist.year,
-      actual: null,
-      forecast: lastHist.actual,
-      lowerBound: lastHist.actual,
-      upperBound: lastHist.actual,
-      confidenceArea: [lastHist.actual, lastHist.actual],
-    };
-
-    return [...histData, bridgePoint, ...foreData];
+    // Combine historical and forecast data - no bridge point needed
+    return [...histData, ...foreData];
   }, [historical, forecast]);
 
   // Determine Y-axis domain to ensure bounds are visible
