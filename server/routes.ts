@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import type { Server } from "http";
-import { storage } from "./storage";
+import { storage, type IndianWeatherData } from "./storage";
 import { api, buildUrl } from "@shared/routes";
 import { z } from "zod";
 import type { ForecastRequest, ForecastResponse, ForecastPoint } from "@shared/schema";
@@ -99,6 +99,35 @@ export async function registerRoutes(
     }
   });
 
+  app.get('/api/weather/by-month', async (req, res) => {
+    try {
+      const city = req.query.city as string | undefined;
+      const year = req.query.year != null ? Number(req.query.year) : NaN;
+      const month = req.query.month != null ? Number(req.query.month) : NaN;
+
+      if (!city || typeof city !== 'string' || city.trim() === '') {
+        return res.status(400).json({ message: 'Query parameter "city" is required' });
+      }
+      if (!Number.isInteger(year) || year < 2020 || year > 2030) {
+        return res.status(400).json({ message: 'Query parameter "year" must be an integer between 2020 and 2030' });
+      }
+      if (!Number.isInteger(month) || month < 1 || month > 12) {
+        return res.status(400).json({ message: 'Query parameter "month" must be an integer between 1 and 12' });
+      }
+
+      const daily = await storage.getWeatherByMonthYear(city.trim(), year, month);
+      if (daily.length === 0) {
+        return res.status(404).json({ message: `No weather data for ${city} in ${month}/${year}` });
+      }
+
+      const summary = aggregateMonthWeather(daily, year, month);
+      res.json(summary);
+    } catch (error) {
+      console.error('Error fetching weather by month:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   await seedDatabase();
 
   return httpServer;
@@ -154,6 +183,29 @@ function generateForecast(historical: { year: number; value: number }[], horizon
   }
   
   return forecast;
+}
+
+function aggregateMonthWeather(daily: IndianWeatherData[], year: number, month: number): IndianWeatherData {
+  const n = daily.length;
+  const first = daily[0];
+  const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
+  const avg = (arr: number[]) => (arr.length ? sum(arr) / arr.length : 0);
+
+  return {
+    date: `${year}-${String(month).padStart(2, '0')}-01`,
+    city: first.city,
+    state: first.state,
+    maxTemp: Math.max(...daily.map((d) => d.maxTemp)),
+    minTemp: Math.min(...daily.map((d) => d.minTemp)),
+    avgTemp: avg(daily.map((d) => d.avgTemp)),
+    humidity: avg(daily.map((d) => d.humidity)),
+    rainfall: sum(daily.map((d) => d.rainfall)),
+    windSpeed: avg(daily.map((d) => d.windSpeed)),
+    aqi: avg(daily.map((d) => d.aqi)),
+    aqiCategory: first.aqiCategory,
+    pressure: avg(daily.map((d) => d.pressure)),
+    cloudCover: avg(daily.map((d) => d.cloudCover)),
+  };
 }
 
 async function seedDatabase() {

@@ -4,7 +4,7 @@ import { Activity, ArrowLeft, BarChart3, Loader2, ThermometerSun, Zap } from "lu
 import { Link } from "wouter";
 
 import { useForecast } from "@/hooks/use-climate";
-import { useLatestWeather } from "@/hooks/use-latest-weather";
+import { useWeatherByMonthYear } from "@/hooks/use-weather-by-month";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/Button";
 import { Select } from "@/components/Select";
@@ -34,13 +34,46 @@ const CITY_OPTIONS = [
   { label: "Bhopal", value: "Bhopal" },
 ];
 
+const MONTH_OPTIONS = [
+  { label: "January", value: "1" },
+  { label: "February", value: "2" },
+  { label: "March", value: "3" },
+  { label: "April", value: "4" },
+  { label: "May", value: "5" },
+  { label: "June", value: "6" },
+  { label: "July", value: "7" },
+  { label: "August", value: "8" },
+  { label: "September", value: "9" },
+  { label: "October", value: "10" },
+  { label: "November", value: "11" },
+  { label: "December", value: "12" },
+];
+
+const YEAR_OPTIONS = [
+  { label: "2024", value: "2024" },
+  { label: "2025", value: "2025" },
+];
+
+const currentMonth = new Date().getMonth() + 1;
+
 export default function Dashboard() {
   const [variable, setVariable] = useState("temperature");
   const [horizon, setHorizon] = useState(365);
   const [selectedCity, setSelectedCity] = useState("Mumbai");
+  const [selectedMonth, setSelectedMonth] = useState(String(currentMonth));
+  const [selectedYear, setSelectedYear] = useState("2025");
 
   const forecastMutation = useForecast();
-  const { condition, data, isLoading } = useLatestWeather(selectedCity);
+  const {
+    condition,
+    data,
+    isLoading,
+    error: weatherError,
+  } = useWeatherByMonthYear(
+    selectedCity,
+    Number(selectedYear),
+    Number(selectedMonth)
+  );
 
   // Trigger initial fetch
   useEffect(() => {
@@ -128,6 +161,20 @@ export default function Dashboard() {
                   options={CITY_OPTIONS}
                 />
 
+                <Select
+                  label="Month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  options={MONTH_OPTIONS}
+                />
+
+                <Select
+                  label="Year"
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  options={YEAR_OPTIONS}
+                />
+
                 <Select 
                   label="Climate Variable"
                   value={variable}
@@ -164,18 +211,27 @@ export default function Dashboard() {
               </div>
             </GlassCard>
 
-            {/* Current Weather Card */}
-            {data && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <GlassCard className="p-6">
-                  <h3 className="text-lg font-display font-black mb-4 flex items-center gap-2 border-b-2 border-border pb-3">
-                    <ThermometerSun className="w-5 h-5 text-foreground" />
-                    Current Weather
-                  </h3>
+            {/* Weather for selected month/year */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <GlassCard className="p-6">
+                <h3 className="text-lg font-display font-black mb-4 flex items-center gap-2 border-b-2 border-border pb-3">
+                  <ThermometerSun className="w-5 h-5 text-foreground" />
+                  Weather for {MONTH_OPTIONS.find((o) => o.value === selectedMonth)?.label ?? selectedMonth} {selectedYear}
+                </h3>
+                {isLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading…
+                  </div>
+                ) : weatherError ? (
+                  <p className="text-sm text-destructive py-2">{weatherError}</p>
+                ) : !data ? (
+                  <p className="text-sm text-muted-foreground py-2">No data for this month.</p>
+                ) : (
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Location</span>
@@ -198,9 +254,9 @@ export default function Dashboard() {
                       <span className="font-semibold">{condition}</span>
                     </div>
                   </div>
-                </GlassCard>
-              </motion.div>
-            )}
+                )}
+              </GlassCard>
+            </motion.div>
           </motion.div>
 
           {/* Main Visuals */}
