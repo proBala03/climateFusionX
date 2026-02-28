@@ -58,13 +58,13 @@ export function ClimateBackground({ condition, isLoading = false }: ClimateBackg
       {/* Climate badge */}
       <div className="absolute top-8 left-1/2 -translate-x-1/2 pointer-events-auto z-50">
         <div
-          className={`flex items-center gap-2 px-6 py-3 rounded-full backdrop-blur-md border shadow-lg transition-all duration-500 ${
+          className={`z-50 flex items-center gap-2 px-6 py-3 rounded-full backdrop-blur-md border shadow-lg transition-all duration-500 ${
             isTransitioning
               ? "opacity-0 scale-95"
               : "opacity-100 scale-100"
           } ${colors.border} ${colors.accent}`}
         >
-          <span className="text-3xl animate-bounce-gentle">{emoji}</span>
+          <span className="text-3xl animate-bounce-gentle z-100">{emoji}</span>
           <div className="text-center">
             <p className={`text-sm font-semibold ${colors.text}`}>{displayCondition}</p>
             {!isLoading && (
