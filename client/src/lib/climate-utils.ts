@@ -1,4 +1,4 @@
-export type ClimateCondition = "Rainy" | "Cloudy" | "Sunny" | "Humid" | "Partly Cloudy";
+export type ClimateCondition = "Rainy" | "Cloudy" | "Sunny" | "Humid" | "Partly Cloudy" | "Forecast";
 
 export interface WeatherData {
   date: string;
@@ -50,6 +50,7 @@ export function getClimateEmoji(condition: ClimateCondition): string {
     Sunny: "☀️",
     Humid: "💧",
     "Partly Cloudy": "⛅",
+    Forecast: "📊",
   };
   return emojiMap[condition];
 }
@@ -96,6 +97,12 @@ export function getClimateColors(condition: ClimateCondition): {
       text: "text-orange-700 dark:text-orange-300",
       border: "border-orange-200 dark:border-orange-800",
       accent: "bg-orange-100 dark:bg-orange-900",
+    },
+    Forecast: {
+      bg: "from-violet-400/20 to-purple-500/20",
+      text: "text-violet-700 dark:text-violet-300",
+      border: "border-violet-200 dark:border-violet-800",
+      accent: "bg-violet-100 dark:bg-violet-900",
     },
   };
   return colorMap[condition];

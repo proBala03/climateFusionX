@@ -34,6 +34,41 @@ export interface MonthSummary {
   avgAqi: number;
 }
 
+/** Per (year, month) aggregate for a city — used for seasonal forecast. */
+export interface MonthlyHistoricalSummary {
+  year: number;
+  month: number;
+  totalRainfall: number;
+  avgTemp: number;
+  rainDays: number;
+  daysInMonth: number;
+}
+
+/** Single-month forecast (historical or predicted). */
+export interface MonthForecastResponse {
+  year: number;
+  month: number;
+  predictedTotalRainfall: number;
+  predictedAvgTemp: number;
+  predictedRainDays: number;
+  willItRain: boolean;
+  summary: string;
+  basedOnYears: number[];
+  lowerBoundRainfall?: number;
+  upperBoundRainfall?: number;
+}
+
+/** One point in the 12-month yearly forecast list. */
+export interface MonthlyForecastPoint {
+  month: number;
+  year: number;
+  predictedTotalRainfall: number;
+  predictedAvgTemp: number;
+  predictedRainDays: number;
+  lowerBoundRainfall?: number;
+  upperBoundRainfall?: number;
+}
+
 export interface IStorage {
   getSeries(variable: string, region: string): Promise<DataPoint[]>;
   insertClimateData(data: InsertClimateData): Promise<ClimateData>;
@@ -44,6 +79,9 @@ export interface IStorage {
   getWeatherByDateRange(city: string, from: string, to: string): Promise<IndianWeatherData[]>;
   getWeatherForecast(city: string, days: number): Promise<WeatherForecastDay[]>;
   getWeatherYearSummary(city: string, year: number): Promise<MonthSummary[]>;
+  getMonthlyHistoricalSummaries(city: string): Promise<MonthlyHistoricalSummary[]>;
+  getWeatherForecastMonth(city: string, year: number, month: number): Promise<MonthForecastResponse | null>;
+  getWeatherForecastYear(city: string, year: number): Promise<MonthlyForecastPoint[]>;
 }
 
 // In-memory storage implementation
@@ -365,6 +403,132 @@ class InMemoryStorage implements IStorage {
         avgTemp: avg(daily.map((d) => d.avgTemp)),
         totalRainfall: sum(daily.map((d) => d.rainfall)),
         avgAqi: avg(daily.map((d) => d.aqi)),
+      });
+    }
+    return result;
+  }
+
+  async getMonthlyHistoricalSummaries(city: string): Promise<MonthlyHistoricalSummary[]> {
+    const cityKey = city.toLowerCase();
+    const cityData = this.indianWeatherData.get(cityKey);
+    if (!cityData || cityData.length === 0) return [];
+
+    const byKey = new Map<string, IndianWeatherData[]>();
+    for (const row of cityData) {
+      const d = new Date(row.date);
+      if (isNaN(d.getTime())) continue;
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const key = `${year}-${month}`;
+      if (!byKey.has(key)) byKey.set(key, []);
+      byKey.get(key)!.push(row);
+    }
+
+    const result: MonthlyHistoricalSummary[] = [];
+    const entries = Array.from(byKey.entries());
+    for (const [key, daily] of entries) {
+      const [y, m] = key.split("-").map(Number);
+      const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
+      const avg = (arr: number[]) => (arr.length ? sum(arr) / arr.length : 0);
+      const rainDays = daily.filter((d: IndianWeatherData) => (d.rainfall ?? 0) > 0).length;
+      const daysInMonth = new Date(y, m, 0).getDate();
+      result.push({
+        year: y,
+        month: m,
+        totalRainfall: sum(daily.map((d: IndianWeatherData) => d.rainfall)),
+        avgTemp: avg(daily.map((d: IndianWeatherData) => d.avgTemp)),
+        rainDays,
+        daysInMonth,
+      });
+    }
+    return result.sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
+  }
+
+  async getWeatherForecastMonth(
+    city: string,
+    year: number,
+    month: number
+  ): Promise<MonthForecastResponse | null> {
+    const cityKey = city.toLowerCase();
+    if (!this.indianWeatherData.has(cityKey)) return null;
+
+    const historical = await this.getMonthlyHistoricalSummaries(city);
+    const sameMonth = historical.filter((h) => h.month === month);
+    const currentYear = new Date().getFullYear();
+    const isPastOrCurrent = year < currentYear || (year === currentYear && month <= new Date().getMonth() + 1);
+
+    if (isPastOrCurrent) {
+      const exact = historical.find((h) => h.year === year && h.month === month);
+      if (exact) {
+        const willItRain = exact.rainDays > 0 || exact.totalRainfall > 0;
+        const summary = `Historical data for ${month}/${year}: ${exact.totalRainfall.toFixed(1)} mm total rainfall, ~${exact.rainDays} rain days.`;
+        return {
+          year,
+          month,
+          predictedTotalRainfall: exact.totalRainfall,
+          predictedAvgTemp: exact.avgTemp,
+          predictedRainDays: exact.rainDays,
+          willItRain,
+          summary,
+          basedOnYears: [year],
+        };
+      }
+    }
+
+    if (sameMonth.length === 0) {
+      return {
+        year,
+        month,
+        predictedTotalRainfall: 0,
+        predictedAvgTemp: 0,
+        predictedRainDays: 0,
+        willItRain: false,
+        summary: "Insufficient historical data for this month.",
+        basedOnYears: [],
+      };
+    }
+
+    const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
+    const avg = (arr: number[]) => (arr.length ? sum(arr) / arr.length : 0);
+    const totalRainfall = avg(sameMonth.map((h) => h.totalRainfall));
+    const avgTemp = avg(sameMonth.map((h) => h.avgTemp));
+    const rainDaysAvg = avg(sameMonth.map((h) => h.rainDays));
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const predictedRainDays = Math.round(rainDaysAvg);
+    const willItRain = predictedRainDays >= 1 || totalRainfall > 0;
+    const basedOnYears = Array.from(new Set(sameMonth.map((h) => h.year))).sort((a, b) => a - b);
+    const rainfalls = sameMonth.map((h) => h.totalRainfall);
+    const lowerBoundRainfall = Math.min(...rainfalls);
+    const upperBoundRainfall = Math.max(...rainfalls);
+    const summary = `Expected rainfall in ${month}/${year}: ~${totalRainfall.toFixed(1)} mm; rain likely on ~${predictedRainDays} days (based on ${basedOnYears.join(", ")}).`;
+
+    return {
+      year,
+      month,
+      predictedTotalRainfall: totalRainfall,
+      predictedAvgTemp: avgTemp,
+      predictedRainDays,
+      willItRain,
+      summary,
+      basedOnYears,
+      lowerBoundRainfall,
+      upperBoundRainfall,
+    };
+  }
+
+  async getWeatherForecastYear(city: string, year: number): Promise<MonthlyForecastPoint[]> {
+    const result: MonthlyForecastPoint[] = [];
+    for (let month = 1; month <= 12; month++) {
+      const forecast = await this.getWeatherForecastMonth(city, year, month);
+      if (!forecast) continue;
+      result.push({
+        month: forecast.month,
+        year: forecast.year,
+        predictedTotalRainfall: forecast.predictedTotalRainfall,
+        predictedAvgTemp: forecast.predictedAvgTemp,
+        predictedRainDays: forecast.predictedRainDays,
+        lowerBoundRainfall: forecast.lowerBoundRainfall,
+        upperBoundRainfall: forecast.upperBoundRainfall,
       });
     }
     return result;

@@ -8,6 +8,8 @@ import { useLatestWeather } from "@/hooks/use-latest-weather";
 import { useWeatherByMonthYear } from "@/hooks/use-weather-by-month";
 import { useWeatherByRange } from "@/hooks/use-weather-by-range";
 import { useWeatherForecast } from "@/hooks/use-weather-forecast";
+import { useWeatherForecastMonth } from "@/hooks/use-weather-forecast-month";
+import { useWeatherForecastYear } from "@/hooks/use-weather-forecast-year";
 import { useWeatherYearSummary } from "@/hooks/use-weather-year-summary";
 import { useClimateSeries } from "@/hooks/use-climate-series";
 import { GlassCard } from "@/components/GlassCard";
@@ -79,6 +81,7 @@ const MONTH_OPTIONS = [
 const YEAR_OPTIONS = [
   { label: "2024", value: "2024" },
   { label: "2025", value: "2025" },
+  { label: "2026", value: "2026" },
 ];
 
 const WEATHER_SOURCE_OPTIONS = [
@@ -113,7 +116,7 @@ function loadStoredState() {
     const month = Number(parsed.selectedMonth);
     const validMonth = Number.isInteger(month) && month >= 1 && month <= 12;
     const year = Number(parsed.selectedYear);
-    const validYear = Number.isInteger(year) && (year === 2024 || year === 2025);
+    const validYear = Number.isInteger(year) && (year === 2024 || year === 2025 || year === 2026);
     if (
       validRegion &&
       validVariable &&
@@ -157,6 +160,11 @@ export default function Dashboard() {
     Number(selectedYear),
     Number(selectedMonth)
   );
+  const forecastMonth = useWeatherForecastMonth(
+    selectedCity,
+    Number(selectedYear),
+    Number(selectedMonth)
+  );
 
   const seasonRange = getSeasonRange(seasonPreset, selectedYear);
   const rangeWeather = useWeatherByRange(
@@ -173,6 +181,7 @@ export default function Dashboard() {
 
   const weatherForecast = useWeatherForecast(selectedCity, 7);
   const weatherYearSummary = useWeatherYearSummary(selectedCity, Number(selectedYear));
+  const forecastYear = useWeatherForecastYear(selectedCity, Number(selectedYear));
 
   const seasonRangeLastYear = getSeasonRange(seasonPreset, String(Number(selectedYear) - 1));
   const rangeWeatherLastYear = useWeatherByRange(
@@ -194,28 +203,55 @@ export default function Dashboard() {
 
   const isSeasonMode = seasonPreset !== "none" && seasonRange != null;
   const isCurrentWeather = weatherSource === "current";
+  const isForecastYear = Number(selectedYear) >= 2026;
 
   const condition = isSeasonMode
     ? rangeWeather.condition
     : isCurrentWeather
       ? latestWeather.condition
-      : monthWeather.condition;
+      : isForecastYear
+        ? "Forecast"
+        : monthWeather.condition;
   const data = isSeasonMode
     ? rangeWeather.data
     : isCurrentWeather
       ? latestWeather.data
-      : monthWeather.data;
+      : isForecastYear && forecastMonth.data
+        ? {
+            city: selectedCity,
+            state: "",
+            avgTemp: forecastMonth.data.predictedAvgTemp,
+            rainfall: forecastMonth.data.predictedTotalRainfall,
+            humidity: 0,
+            aqi: 0,
+            aqiCategory: "",
+          }
+        : monthWeather.data;
   const weatherError = isSeasonMode
     ? rangeWeather.error
     : isCurrentWeather
       ? latestWeather.error
-      : monthWeather.error;
+      : isForecastYear
+        ? forecastMonth.error
+        : monthWeather.error;
   const isLoading = isSeasonMode
     ? rangeWeather.isLoading
     : isCurrentWeather
       ? latestWeather.isLoading
-      : monthWeather.isLoading;
-  const weatherDaily = isSeasonMode ? rangeWeather.daily : monthWeather.daily;
+      : isForecastYear
+        ? forecastMonth.isLoading
+        : monthWeather.isLoading;
+  const weatherDaily = isSeasonMode ? rangeWeather.daily : isForecastYear ? [] : monthWeather.daily;
+
+  const yearSummaryForCharts =
+    isForecastYear && forecastYear.data.length > 0
+      ? forecastYear.data.map((p) => ({
+          month: p.month,
+          avgTemp: p.predictedAvgTemp,
+          totalRainfall: p.predictedTotalRainfall,
+          avgAqi: 0,
+        }))
+      : weatherYearSummary.data;
 
   // Trigger initial fetch
   useEffect(() => {
@@ -482,10 +518,56 @@ export default function Dashboard() {
                       <span className="text-muted-foreground">Condition</span>
                       <span className="font-semibold">{condition}</span>
                     </div>
+                    {isForecastYear && forecastMonth.data && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Rain days (est.)</span>
+                          <span className="font-semibold">~{forecastMonth.data.predictedRainDays} days</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground border-t border-border pt-3 mt-2">
+                          Based on 2024–2025 seasonal averages; actual weather may vary.
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
               </GlassCard>
             </motion.div>
+
+            {/* Will it rain? (forecast year only) */}
+            {!isCurrentWeather && !isSeasonMode && isForecastYear && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.19 }}
+              >
+                <GlassCard className="p-6">
+                  <h3 className="text-lg font-display font-black mb-4 flex items-center gap-2 border-b-2 border-border pb-3">
+                    Will it rain in {MONTH_OPTIONS.find((o) => o.value === selectedMonth)?.label ?? selectedMonth} {selectedYear}?
+                  </h3>
+                  {forecastMonth.isLoading ? (
+                    <div className="space-y-3">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </div>
+                  ) : forecastMonth.error ? (
+                    <p className="text-sm text-destructive py-2">{forecastMonth.error}</p>
+                  ) : forecastMonth.data ? (
+                    <div className="space-y-3 text-sm">
+                      <p className="font-semibold text-foreground">
+                        {forecastMonth.data.willItRain ? "Yes" : "No"} — {forecastMonth.data.summary}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Based on 2024–2025 seasonal averages; actual weather may vary.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground py-2">Select a city and month to see forecast.</p>
+                  )}
+                </GlassCard>
+              </motion.div>
+            )}
 
             {/* 7-day outlook */}
             {weatherForecast.data.length > 0 && (
@@ -728,7 +810,7 @@ export default function Dashboard() {
             )}
 
             {/* Weather insights / Charts */}
-            {(weatherDaily.length > 0 || weatherYearSummary.data.length > 0 || (compareCity && monthWeather.daily.length > 0 && monthWeatherCompare.daily.length > 0) || (climateTemp.data.length > 0 && climateCo2.data.length > 0 && climateSeaLevel.data.length > 0) || (isSeasonMode && rangeWeather.data && rangeWeatherLastYear.data)) && (
+            {(weatherDaily.length > 0 || yearSummaryForCharts.length > 0 || (compareCity && monthWeather.daily.length > 0 && monthWeatherCompare.daily.length > 0) || (climateTemp.data.length > 0 && climateCo2.data.length > 0 && climateSeaLevel.data.length > 0) || (isSeasonMode && rangeWeather.data && rangeWeatherLastYear.data)) && (
               <motion.div
                 className="space-y-6"
                 initial={{ opacity: 0, y: 10 }}
@@ -767,16 +849,26 @@ export default function Dashboard() {
                       <WindCloudChart daily={weatherDaily} />
                     </GlassCard>
                   )}
-                  {weatherYearSummary.data.length > 0 && (
+                  {yearSummaryForCharts.length > 0 && (
                     <GlassCard className="p-4">
-                      <h4 className="text-sm font-semibold mb-2">Monthly summary {selectedYear}</h4>
-                      <MonthlyBarChart data={weatherYearSummary.data} metric="avgTemp" />
+                      <h4 className="text-sm font-semibold mb-2">
+                        Monthly summary {selectedYear}
+                        {isForecastYear && (
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">(forecast)</span>
+                        )}
+                      </h4>
+                      <MonthlyBarChart data={yearSummaryForCharts} metric="avgTemp" />
                     </GlassCard>
                   )}
-                  {weatherYearSummary.data.length > 0 && (
+                  {yearSummaryForCharts.length > 0 && (
                     <GlassCard className="p-4">
-                      <h4 className="text-sm font-semibold mb-2">Monthly rainfall {selectedYear}</h4>
-                      <MonthlyBarChart data={weatherYearSummary.data} metric="totalRainfall" />
+                      <h4 className="text-sm font-semibold mb-2">
+                        Monthly rainfall {selectedYear}
+                        {isForecastYear && (
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">(forecast)</span>
+                        )}
+                      </h4>
+                      <MonthlyBarChart data={yearSummaryForCharts} metric="totalRainfall" />
                     </GlassCard>
                   )}
                   {compareCity && monthWeather.daily.length > 0 && monthWeatherCompare.daily.length > 0 && (

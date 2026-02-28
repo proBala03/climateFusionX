@@ -180,6 +180,53 @@ export async function registerRoutes(
     }
   });
 
+  app.get('/api/weather/forecast/month', async (req, res) => {
+    try {
+      const city = req.query.city as string | undefined;
+      const year = req.query.year != null ? Number(req.query.year) : NaN;
+      const month = req.query.month != null ? Number(req.query.month) : NaN;
+
+      if (!city || typeof city !== 'string' || city.trim() === '') {
+        return res.status(400).json({ message: 'Query parameter "city" is required' });
+      }
+      if (!Number.isInteger(year) || year < 2020 || year > 2030) {
+        return res.status(400).json({ message: 'Query parameter "year" must be an integer between 2020 and 2030' });
+      }
+      if (!Number.isInteger(month) || month < 1 || month > 12) {
+        return res.status(400).json({ message: 'Query parameter "month" must be an integer between 1 and 12' });
+      }
+
+      const data = await storage.getWeatherForecastMonth(city.trim(), year, month);
+      if (!data) {
+        return res.status(404).json({ message: `No data or forecast for city "${city}"` });
+      }
+      res.json(data);
+    } catch (error) {
+      console.error('Error fetching weather forecast by month:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/weather/forecast/monthly', async (req, res) => {
+    try {
+      const city = req.query.city as string | undefined;
+      const year = req.query.year != null ? Number(req.query.year) : NaN;
+
+      if (!city || typeof city !== 'string' || city.trim() === '') {
+        return res.status(400).json({ message: 'Query parameter "city" is required' });
+      }
+      if (!Number.isInteger(year) || year < 2020 || year > 2030) {
+        return res.status(400).json({ message: 'Query parameter "year" must be an integer between 2020 and 2030' });
+      }
+
+      const data = await storage.getWeatherForecastYear(city.trim(), year);
+      res.json(data);
+    } catch (error) {
+      console.error('Error fetching weather forecast by year:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   app.get('/api/weather/year', async (req, res) => {
     try {
       const city = req.query.city as string | undefined;
