@@ -128,6 +128,40 @@ export async function registerRoutes(
     }
   });
 
+  app.get('/api/weather/range', async (req, res) => {
+    try {
+      const city = req.query.city as string | undefined;
+      const from = req.query.from as string | undefined;
+      const to = req.query.to as string | undefined;
+
+      if (!city || typeof city !== 'string' || city.trim() === '') {
+        return res.status(400).json({ message: 'Query parameter "city" is required' });
+      }
+      if (!from || !to) {
+        return res.status(400).json({ message: 'Query parameters "from" and "to" are required (YYYY-MM-DD)' });
+      }
+      const fromTime = Date.parse(from);
+      const toTime = Date.parse(to);
+      if (isNaN(fromTime) || isNaN(toTime)) {
+        return res.status(400).json({ message: 'Invalid date format; use YYYY-MM-DD' });
+      }
+      if (from > to) {
+        return res.status(400).json({ message: '"from" must be less than or equal to "to"' });
+      }
+
+      const daily = await storage.getWeatherByDateRange(city.trim(), from, to);
+      if (daily.length === 0) {
+        return res.status(404).json({ message: `No weather data for ${city} in range ${from} to ${to}` });
+      }
+
+      const summary = aggregateRangeWeather(daily, from, to);
+      res.json({ summary, daily });
+    } catch (error) {
+      console.error('Error fetching weather by range:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   await seedDatabase();
 
   return httpServer;
@@ -186,13 +220,34 @@ function generateForecast(historical: { year: number; value: number }[], horizon
 }
 
 function aggregateMonthWeather(daily: IndianWeatherData[], year: number, month: number): IndianWeatherData {
-  const n = daily.length;
   const first = daily[0];
   const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
   const avg = (arr: number[]) => (arr.length ? sum(arr) / arr.length : 0);
 
   return {
     date: `${year}-${String(month).padStart(2, '0')}-01`,
+    city: first.city,
+    state: first.state,
+    maxTemp: Math.max(...daily.map((d) => d.maxTemp)),
+    minTemp: Math.min(...daily.map((d) => d.minTemp)),
+    avgTemp: avg(daily.map((d) => d.avgTemp)),
+    humidity: avg(daily.map((d) => d.humidity)),
+    rainfall: sum(daily.map((d) => d.rainfall)),
+    windSpeed: avg(daily.map((d) => d.windSpeed)),
+    aqi: avg(daily.map((d) => d.aqi)),
+    aqiCategory: first.aqiCategory,
+    pressure: avg(daily.map((d) => d.pressure)),
+    cloudCover: avg(daily.map((d) => d.cloudCover)),
+  };
+}
+
+function aggregateRangeWeather(daily: IndianWeatherData[], from: string, to: string): IndianWeatherData {
+  const first = daily[0];
+  const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
+  const avg = (arr: number[]) => (arr.length ? sum(arr) / arr.length : 0);
+
+  return {
+    date: from,
     city: first.city,
     state: first.state,
     maxTemp: Math.max(...daily.map((d) => d.maxTemp)),

@@ -6,6 +6,7 @@ import { Link } from "wouter";
 import { useForecast } from "@/hooks/use-climate";
 import { useLatestWeather } from "@/hooks/use-latest-weather";
 import { useWeatherByMonthYear } from "@/hooks/use-weather-by-month";
+import { useWeatherByRange } from "@/hooks/use-weather-by-range";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/Button";
 import { Select } from "@/components/Select";
@@ -13,6 +14,7 @@ import { ClimateChart } from "@/components/ClimateChart";
 import { ClimateBackground } from "@/components/ClimateBackground";
 import { WeatherDailyChart } from "@/components/WeatherDailyChart";
 import { exportChartToCsv, exportWeatherToCsv } from "@/lib/csv-export";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const VARIABLE_OPTIONS = [
   { label: "Temperature Anomaly (°C)", value: "temperature" },
@@ -28,7 +30,11 @@ const REGION_OPTIONS = [
 
 const HORIZON_OPTIONS = [
   { label: "1 Year (365 Days)", value: 365 },
+  { label: "2 Years (730 Days)", value: 730 },
+  { label: "3 Years (1095 Days)", value: 1095 },
 ];
+
+const STORAGE_KEY = "climateFusionX_dashboard";
 
 const CITY_OPTIONS = [
   { label: "Mumbai", value: "Mumbai" },
@@ -68,16 +74,69 @@ const WEATHER_SOURCE_OPTIONS = [
   { label: "Month / Year", value: "month" },
 ];
 
+const SEASON_OPTIONS = [
+  { label: "None", value: "none" },
+  { label: "Monsoon (Jun–Sep)", value: "monsoon" },
+  { label: "Winter (Dec–Feb)", value: "winter" },
+];
+
 const currentMonth = new Date().getMonth() + 1;
 
+function getSeasonRange(preset: string, year: string): { from: string; to: string } | null {
+  const y = Number(year);
+  if (preset === "monsoon") return { from: `${y}-06-01`, to: `${y}-09-30` };
+  if (preset === "winter") return { from: `${y}-12-01`, to: `${y + 1}-02-28` };
+  return null;
+}
+
+function loadStoredState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const validRegion = REGION_OPTIONS.some((o) => o.value === parsed.region);
+    const validVariable = VARIABLE_OPTIONS.some((o) => o.value === parsed.variable);
+    const validHorizon = HORIZON_OPTIONS.some((o) => o.value === parsed.horizon);
+    const validCity = CITY_OPTIONS.some((o) => o.value === parsed.selectedCity);
+    const month = Number(parsed.selectedMonth);
+    const validMonth = Number.isInteger(month) && month >= 1 && month <= 12;
+    const year = Number(parsed.selectedYear);
+    const validYear = Number.isInteger(year) && (year === 2024 || year === 2025);
+    if (
+      validRegion &&
+      validVariable &&
+      validHorizon &&
+      validCity &&
+      validMonth &&
+      validYear &&
+      (parsed.weatherSource === "current" || parsed.weatherSource === "month")
+    ) {
+      return {
+        variable: parsed.variable as string,
+        region: parsed.region as string,
+        horizon: Number(parsed.horizon),
+        selectedCity: parsed.selectedCity as string,
+        weatherSource: parsed.weatherSource as "current" | "month",
+        selectedMonth: String(parsed.selectedMonth),
+        selectedYear: String(parsed.selectedYear),
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export default function Dashboard() {
-  const [variable, setVariable] = useState("temperature");
-  const [region, setRegion] = useState("global");
-  const [horizon, setHorizon] = useState(365);
-  const [selectedCity, setSelectedCity] = useState("Mumbai");
-  const [weatherSource, setWeatherSource] = useState<"current" | "month">("month");
-  const [selectedMonth, setSelectedMonth] = useState(String(currentMonth));
-  const [selectedYear, setSelectedYear] = useState("2025");
+  const [variable, setVariable] = useState(() => loadStoredState()?.variable ?? "temperature");
+  const [region, setRegion] = useState(() => loadStoredState()?.region ?? "global");
+  const [horizon, setHorizon] = useState(() => loadStoredState()?.horizon ?? 365);
+  const [selectedCity, setSelectedCity] = useState(() => loadStoredState()?.selectedCity ?? "Mumbai");
+  const [weatherSource, setWeatherSource] = useState<"current" | "month">(() => loadStoredState()?.weatherSource ?? "month");
+  const [selectedMonth, setSelectedMonth] = useState(() => loadStoredState()?.selectedMonth ?? String(currentMonth));
+  const [selectedYear, setSelectedYear] = useState(() => loadStoredState()?.selectedYear ?? "2025");
+  const [seasonPreset, setSeasonPreset] = useState<"none" | "monsoon" | "winter">("none");
+  const [compareCity, setCompareCity] = useState("");
 
   const forecastMutation = useForecast();
   const latestWeather = useLatestWeather(selectedCity);
@@ -87,12 +146,50 @@ export default function Dashboard() {
     Number(selectedMonth)
   );
 
+  const seasonRange = getSeasonRange(seasonPreset, selectedYear);
+  const rangeWeather = useWeatherByRange(
+    selectedCity,
+    seasonRange?.from ?? "",
+    seasonRange?.to ?? ""
+  );
+
+  const monthWeatherCompare = useWeatherByMonthYear(
+    compareCity,
+    Number(selectedYear),
+    Number(selectedMonth)
+  );
+
+  const lastYear = Number(selectedYear) - 1;
+  const monthWeatherLastYear = useWeatherByMonthYear(
+    selectedCity,
+    lastYear,
+    Number(selectedMonth)
+  );
+
+  const isSeasonMode = seasonPreset !== "none" && seasonRange != null;
   const isCurrentWeather = weatherSource === "current";
-  const condition = isCurrentWeather ? latestWeather.condition : monthWeather.condition;
-  const data = isCurrentWeather ? latestWeather.data : monthWeather.data;
-  const weatherError = isCurrentWeather ? latestWeather.error : monthWeather.error;
-  const isLoading = isCurrentWeather ? latestWeather.isLoading : monthWeather.isLoading;
-  const weatherDaily = monthWeather.daily;
+
+  const condition = isSeasonMode
+    ? rangeWeather.condition
+    : isCurrentWeather
+      ? latestWeather.condition
+      : monthWeather.condition;
+  const data = isSeasonMode
+    ? rangeWeather.data
+    : isCurrentWeather
+      ? latestWeather.data
+      : monthWeather.data;
+  const weatherError = isSeasonMode
+    ? rangeWeather.error
+    : isCurrentWeather
+      ? latestWeather.error
+      : monthWeather.error;
+  const isLoading = isSeasonMode
+    ? rangeWeather.isLoading
+    : isCurrentWeather
+      ? latestWeather.isLoading
+      : monthWeather.isLoading;
+  const weatherDaily = isSeasonMode ? rangeWeather.daily : monthWeather.daily;
 
   // Trigger initial fetch
   useEffect(() => {
@@ -102,11 +199,25 @@ export default function Dashboard() {
 
   // Regenerate forecast when horizon changes
   useEffect(() => {
-    if (horizon !== 365) {
-      handleGenerate();
-    }
+    handleGenerate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [horizon]);
+
+  // Persist state to localStorage
+  useEffect(() => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        variable,
+        region,
+        horizon,
+        selectedCity,
+        weatherSource,
+        selectedMonth,
+        selectedYear,
+      })
+    );
+  }, [variable, region, horizon, selectedCity, weatherSource, selectedMonth, selectedYear]);
 
   const handleGenerate = () => {
     forecastMutation.mutate({
@@ -128,6 +239,7 @@ export default function Dashboard() {
 
   const getVariableLabel = () => VARIABLE_OPTIONS.find(o => o.value === variable)?.label || variable;
   const getRegionLabel = () => REGION_OPTIONS.find(o => o.value === region)?.label || region;
+  const getHorizonLabel = () => HORIZON_OPTIONS.find(o => o.value === horizon)?.label?.replace(/\s*\(.*\)$/, "") || `${horizon} Days`;
 
   return (
     <div className="min-h-screen relative p-4 md:p-8">
@@ -147,9 +259,14 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
         >
           <div>
-            <Link href="/" className="inline-flex items-center text-sm font-bold text-muted-foreground hover:text-foreground transition-colors mb-2">
-              <ArrowLeft className="w-4 h-4 mr-1" /> Back to Home
-            </Link>
+            <div className="flex items-center gap-3 mb-2">
+              <Link href="/" className="inline-flex items-center text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
+                <ArrowLeft className="w-4 h-4 mr-1" /> Back to Home
+              </Link>
+              <Link href="/about" className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
+                About
+              </Link>
+            </div>
             <h1 className="text-3xl font-display font-black neo-text-shadow">Analysis Engine</h1>
           </div>
           <div className="neo-surface neo-shadow bg-card px-3 py-2 rounded-md flex items-center gap-3">
@@ -207,7 +324,21 @@ export default function Dashboard() {
                   disabled={isCurrentWeather}
                 />
 
-                <Select 
+                <Select
+                  label="Season preset"
+                  value={seasonPreset}
+                  onChange={(e) => setSeasonPreset((e.target.value === "monsoon" ? "monsoon" : e.target.value === "winter" ? "winter" : "none") as "none" | "monsoon" | "winter")}
+                  options={SEASON_OPTIONS}
+                />
+
+                <Select
+                  label="Compare city (vs)"
+                  value={compareCity}
+                  onChange={(e) => setCompareCity(e.target.value)}
+                  options={[{ label: "None", value: "" }, ...CITY_OPTIONS]}
+                />
+
+                <Select  
                   label="Climate Variable"
                   value={variable}
                   onChange={(e) => setVariable(e.target.value)}
@@ -261,18 +392,26 @@ export default function Dashboard() {
                   <ThermometerSun className="w-5 h-5 text-foreground" />
                   {isCurrentWeather
                     ? "Current Weather"
-                    : `Weather for ${MONTH_OPTIONS.find((o) => o.value === selectedMonth)?.label ?? selectedMonth} ${selectedYear}`}
+                    : isSeasonMode
+                      ? seasonPreset === "monsoon"
+                        ? `Monsoon ${selectedYear}`
+                        : `Winter ${selectedYear}–${Number(selectedYear) + 1}`
+                      : `Weather for ${MONTH_OPTIONS.find((o) => o.value === selectedMonth)?.label ?? selectedMonth} ${selectedYear}`}
                 </h3>
                 {isLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Loading…
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
                   </div>
                 ) : weatherError ? (
                   <p className="text-sm text-destructive py-2">{weatherError}</p>
                 ) : !data ? (
                   <p className="text-sm text-muted-foreground py-2">
-                    {isCurrentWeather ? "No weather data." : "No data for this month."}
+                    {isCurrentWeather ? "No weather data." : isSeasonMode ? "No data for this season." : "No data for this month."}
                   </p>
                 ) : (
                   <div className="space-y-3 text-sm">
@@ -290,7 +429,28 @@ export default function Dashboard() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Rainfall</span>
-                      <span className="font-semibold">{data.rainfall.toFixed(1)}mm</span>
+                      <span className="font-semibold">{data.rainfall.toFixed(1)} mm</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">AQI</span>
+                      <span className="font-semibold flex items-center gap-2">
+                        {data.aqi != null && !Number.isNaN(data.aqi) ? Math.round(data.aqi) : "—"}
+                        {data.aqiCategory && (
+                          <span
+                            className={
+                              data.aqiCategory.toLowerCase().includes("good") || data.aqiCategory.toLowerCase().includes("satisfactory")
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : data.aqiCategory.toLowerCase().includes("moderate")
+                                  ? "text-yellow-600 dark:text-yellow-400"
+                                  : data.aqiCategory.toLowerCase().includes("poor")
+                                    ? "text-orange-600 dark:text-orange-400"
+                                    : "text-red-600 dark:text-red-400"
+                            }
+                          >
+                            ({data.aqiCategory})
+                          </span>
+                        )}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Condition</span>
@@ -300,6 +460,69 @@ export default function Dashboard() {
                 )}
               </GlassCard>
             </motion.div>
+
+            {!isCurrentWeather && !isSeasonMode && compareCity && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.22 }}
+              >
+                <GlassCard className="p-4">
+                  <h3 className="text-sm font-display font-black mb-3 border-b border-border pb-2">vs {compareCity}</h3>
+                  {monthWeatherCompare.isLoading ? (
+                    <p className="text-xs text-muted-foreground">Loading…</p>
+                  ) : monthWeatherCompare.data ? (
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Avg temp</span>
+                        <span className="font-semibold">{monthWeatherCompare.data.avgTemp.toFixed(1)}°C</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Rainfall</span>
+                        <span className="font-semibold">{monthWeatherCompare.data.rainfall.toFixed(1)} mm</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">AQI</span>
+                        <span className="font-semibold">{monthWeatherCompare.data.aqi != null ? Math.round(monthWeatherCompare.data.aqi) : "—"} ({monthWeatherCompare.data.aqiCategory || "—"})</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No data</p>
+                  )}
+                </GlassCard>
+              </motion.div>
+            )}
+
+            {!isCurrentWeather && !isSeasonMode && Number(selectedYear) > 2024 && data && monthWeatherLastYear.data && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.23 }}
+              >
+                <GlassCard className="p-4">
+                  <h3 className="text-sm font-display font-black mb-3 border-b border-border pb-2">
+                    {MONTH_OPTIONS.find((o) => o.value === selectedMonth)?.label ?? selectedMonth} {selectedYear} vs {lastYear}
+                  </h3>
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Avg temp</span>
+                      <span className="font-semibold">
+                        {(data.avgTemp - monthWeatherLastYear.data.avgTemp) >= 0 ? "+" : ""}
+                        {(data.avgTemp - monthWeatherLastYear.data.avgTemp).toFixed(1)}°C
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Rainfall</span>
+                      <span className="font-semibold">
+                        {(data.rainfall - monthWeatherLastYear.data.rainfall) >= 0 ? "+" : ""}
+                        {(data.rainfall - monthWeatherLastYear.data.rainfall).toFixed(1)} mm
+                      </span>
+                    </div>
+                  </div>
+                </GlassCard>
+              </motion.div>
+            )}
+
           </motion.div>
 
           {/* Main Visuals */}
@@ -370,7 +593,7 @@ export default function Dashboard() {
                         {getVariableLabel()} Projection
                       </h2>
                       <p className="text-sm text-muted-foreground capitalize">
-                        {getRegionLabel()} · {horizon} Year Horizon
+                        {getRegionLabel()} · {getHorizonLabel()} Horizon
                       </p>
                     </div>
                   </div>
@@ -392,11 +615,15 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                <div className="flex-grow relative">
+                <div className="flex-grow relative min-h-[400px]">
                   {forecastMutation.isPending ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-10 rounded-md border-2 border-border neo-shadow">
-                      <Loader2 className="w-12 h-12 text-foreground animate-spin mb-4" />
-                      <p className="text-foreground font-black tracking-widest uppercase animate-pulse">Computing Matrix...</p>
+                    <div className="absolute inset-0 flex flex-col gap-4 p-4 z-10">
+                      <div className="flex gap-2 items-end flex-1">
+                        {[40, 65, 45, 80, 55, 70, 50, 60, 75, 45].map((h, i) => (
+                          <Skeleton key={i} className="flex-1 min-w-[8px]" style={{ height: `${h}%` }} />
+                        ))}
+                      </div>
+                      <Skeleton className="h-4 w-2/3 mx-auto" />
                     </div>
                   ) : forecastMutation.isError ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-destructive">

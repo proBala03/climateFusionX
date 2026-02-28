@@ -25,6 +25,7 @@ export interface IStorage {
   getAllData(): Promise<ClimateData[]>;
   getLatestWeather(city?: string): Promise<IndianWeatherData | IndianWeatherData[]>;
   getWeatherByMonthYear(city: string, year: number, month: number): Promise<IndianWeatherData[]>;
+  getWeatherByDateRange(city: string, from: string, to: string): Promise<IndianWeatherData[]>;
 }
 
 // In-memory storage implementation
@@ -260,6 +261,17 @@ class InMemoryStorage implements IStorage {
       const d = new Date(row.date);
       if (isNaN(d.getTime())) return false;
       return d.getFullYear() === year && d.getMonth() + 1 === month;
+    });
+  }
+
+  async getWeatherByDateRange(city: string, from: string, to: string): Promise<IndianWeatherData[]> {
+    const cityKey = city.toLowerCase();
+    const cityData = this.indianWeatherData.get(cityKey);
+    if (!cityData || cityData.length === 0) return [];
+
+    return cityData.filter((row) => {
+      const date = row.date;
+      return date >= from && date <= to;
     });
   }
 }
