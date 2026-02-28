@@ -227,6 +227,34 @@ export async function registerRoutes(
     }
   });
 
+  app.get('/api/weather/forecast/month/daily', async (req, res) => {
+    try {
+      const city = req.query.city as string | undefined;
+      const year = req.query.year != null ? Number(req.query.year) : NaN;
+      const month = req.query.month != null ? Number(req.query.month) : NaN;
+
+      if (!city || typeof city !== 'string' || city.trim() === '') {
+        return res.status(400).json({ message: 'Query parameter "city" is required' });
+      }
+      if (!Number.isInteger(year) || year < 2020 || year > 2030) {
+        return res.status(400).json({ message: 'Query parameter "year" must be an integer between 2020 and 2030' });
+      }
+      if (!Number.isInteger(month) || month < 1 || month > 12) {
+        return res.status(400).json({ message: 'Query parameter "month" must be an integer between 1 and 12' });
+      }
+
+      const daily = await storage.getWeatherForecastMonthDaily(city.trim(), year, month);
+      if (daily.length === 0) {
+        return res.status(404).json({ message: `No data or forecast for ${city} in ${month}/${year}` });
+      }
+      const summary = aggregateMonthWeather(daily, year, month);
+      res.json({ summary, daily });
+    } catch (error) {
+      console.error('Error fetching weather forecast month daily:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   app.get('/api/weather/year', async (req, res) => {
     try {
       const city = req.query.city as string | undefined;
@@ -278,29 +306,30 @@ function generateForecast(historical: { year: number; value: number }[], horizon
   
   const forecast: ForecastPoint[] = [];
   const baseUncertainty = Math.abs(avgValue * 0.05);
-  
-  // For next day (horizon = 1), predict with reduced uncertainty
-  for (let i = 1; i <= horizon; i++) {
-    const dayForecast = lastYear + (i / 365);
-    const trendComponent = trend * (i / 12); // Reduce trend component for daily forecast
+
+  // Treat horizon as days: 365 -> 1 year ahead, 730 -> 2 years, 1095 -> 3 years (so projection shows 2026, 2027, 2028)
+  const numYears = Math.max(1, Math.min(10, Math.round(horizon / 365)));
+  for (let i = 1; i <= numYears; i++) {
+    const forecastYear = lastYear + i;
+    const trendComponent = trend * i;
     const seasonalNoise = Math.sin(i * 0.5) * (avgValue * 0.02);
     const randomNoise = (Math.random() - 0.5) * (avgValue * 0.005);
-    
+
     const predictedValue = lastValue + trendComponent + seasonalNoise + randomNoise;
     const uncertainty = baseUncertainty * Math.sqrt(i);
-    
+
     const value = isNaN(predictedValue) ? lastValue : predictedValue;
     const lower = isNaN(predictedValue - uncertainty * 1.96) ? value * 0.95 : predictedValue - uncertainty * 1.96;
     const upper = isNaN(predictedValue + uncertainty * 1.96) ? value * 1.05 : predictedValue + uncertainty * 1.96;
-    
+
     forecast.push({
-      year: dayForecast,
+      year: forecastYear,
       value: value,
       lowerBound: lower,
       upperBound: upper
     });
   }
-  
+
   return forecast;
 }
 

@@ -82,6 +82,7 @@ export interface IStorage {
   getMonthlyHistoricalSummaries(city: string): Promise<MonthlyHistoricalSummary[]>;
   getWeatherForecastMonth(city: string, year: number, month: number): Promise<MonthForecastResponse | null>;
   getWeatherForecastYear(city: string, year: number): Promise<MonthlyForecastPoint[]>;
+  getWeatherForecastMonthDaily(city: string, year: number, month: number): Promise<IndianWeatherData[]>;
 }
 
 // In-memory storage implementation
@@ -529,6 +530,79 @@ class InMemoryStorage implements IStorage {
         predictedRainDays: forecast.predictedRainDays,
         lowerBoundRainfall: forecast.lowerBoundRainfall,
         upperBoundRainfall: forecast.upperBoundRainfall,
+      });
+    }
+    return result;
+  }
+
+  async getWeatherForecastMonthDaily(
+    city: string,
+    year: number,
+    month: number
+  ): Promise<IndianWeatherData[]> {
+    const cityKey = city.toLowerCase();
+    const cityData = this.indianWeatherData.get(cityKey);
+    if (!cityData || cityData.length === 0) return [];
+
+    const existing = await this.getWeatherByMonthYear(city, year, month);
+    if (existing.length > 0) return existing;
+
+    const forecast = await this.getWeatherForecastMonth(city, year, month);
+    if (!forecast) return [];
+
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const pad = (n: number) => String(n).padStart(2, "0");
+
+    const historical = await this.getMonthlyHistoricalSummaries(city);
+    const sameMonth = historical.filter((h) => h.month === month);
+    let avgHumidity = 65;
+    let avgWind = 10;
+    let avgCloud = 50;
+    let avgAqi = 80;
+
+    if (sameMonth.length > 0) {
+      const allDaily: IndianWeatherData[] = [];
+      for (const h of sameMonth) {
+        const daily = await this.getWeatherByMonthYear(city, h.year, h.month);
+        allDaily.push(...daily);
+      }
+      if (allDaily.length > 0) {
+        const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
+        avgHumidity = sum(allDaily.map((d: IndianWeatherData) => d.humidity)) / allDaily.length;
+        avgWind = sum(allDaily.map((d: IndianWeatherData) => d.windSpeed)) / allDaily.length;
+        avgCloud = sum(allDaily.map((d: IndianWeatherData) => d.cloudCover)) / allDaily.length;
+        avgAqi = sum(allDaily.map((d: IndianWeatherData) => d.aqi)) / allDaily.length;
+      }
+    }
+
+    const rainDays = Math.max(0, Math.min(forecast.predictedRainDays, daysInMonth));
+    const rainPerDay =
+      rainDays > 0 && forecast.predictedTotalRainfall > 0
+        ? forecast.predictedTotalRainfall / rainDays
+        : 0;
+
+    const result: IndianWeatherData[] = [];
+    const firstCity = cityData[0];
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${pad(month)}-${pad(day)}`;
+      const isRainDay = day <= rainDays;
+      const rainfall = isRainDay ? rainPerDay : 0;
+      const variance = (Math.sin(day * 0.7) * 0.5 + 0.5) * 2;
+      const avgTemp = forecast.predictedAvgTemp + (variance - 1);
+      result.push({
+        date: dateStr,
+        city: firstCity.city,
+        state: firstCity.state,
+        maxTemp: avgTemp + 2,
+        minTemp: avgTemp - 2,
+        avgTemp,
+        humidity: Math.round(avgHumidity + (Math.sin(day) * 5)),
+        rainfall,
+        windSpeed: Math.max(0, avgWind + (Math.sin(day * 0.3) * 3)),
+        aqi: Math.round(avgAqi + (Math.sin(day * 0.5) * 15)),
+        aqiCategory: firstCity.aqiCategory,
+        pressure: firstCity.pressure,
+        cloudCover: Math.max(0, Math.min(100, avgCloud + (Math.sin(day * 0.4) * 10))),
       });
     }
     return result;

@@ -148,12 +148,10 @@ export function ClimateChart({ historical, forecast, variableName }: ClimateChar
               
               if (fraction > 0) {
                 if (fraction > 0.1) {
-                  // Monthly format
+                  // Monthly format for fractional years
                   const month = Math.round(fraction * 12) || 0;
                   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                    // If forecast starts in 2026, always show 2026+ for forecast points
-                    const forecastStartYear = "26"//value > 2025.99 ? 2026 : year;
-                    return `${months[month - 1] || 'Jan'} '${forecastStartYear}`;
+                  return `${months[month - 1] || 'Jan'} ${year}`;
                 } else {
                   // Daily format
                   const dayOfYear = Math.round(fraction * 365);
