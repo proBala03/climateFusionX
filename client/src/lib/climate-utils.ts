@@ -110,21 +110,36 @@ export function getClimateColors(condition: ClimateCondition): {
 
 /**
  * Determines the climate condition based on forecast data (rainfall and temperature)
- * Uses similar logic to getClimateCondition but adapted for forecast predictions:
- * - If predicted rainfall > 5mm → "Rainy"
- * - If predicted rainfall > 0mm → "Cloudy"
- * - If predicted rainfall == 0 && predicted avgTemp >= 30 → "Sunny"
+ * Uses rain days and temperature to make a better prediction:
+ * - If predicted rain days >= 12 → "Rainy" (40%+ of month with rain)
+ * - If predicted rain days >= 6 → "Cloudy" (20%+ of month with rain)
+ * - If predicted rain days < 6 && predicted avgTemp >= 27 → "Sunny"
  * - Else → "Partly Cloudy"
  */
 export function getClimateConditionFromForecast(
   predictedTotalRainfall: number,
-  predictedAvgTemp: number
+  predictedAvgTemp: number,
+  predictedRainDays?: number
 ): ClimateCondition {
-  if (predictedTotalRainfall > 5) {
+  // Prefer using rain days if available (more accurate for determining cloudiness)
+  if (predictedRainDays !== undefined) {
+    if (predictedRainDays >= 12) {
+      return "Rainy";
+    } else if (predictedRainDays >= 6) {
+      return "Cloudy";
+    } else if (predictedRainDays < 6 && predictedAvgTemp >= 27) {
+      return "Sunny";
+    } else {
+      return "Partly Cloudy";
+    }
+  }
+
+  // Fallback to rainfall-based logic if rain days not available
+  if (predictedTotalRainfall > 200) {
     return "Rainy";
-  } else if (predictedTotalRainfall > 0) {
+  } else if (predictedTotalRainfall > 50) {
     return "Cloudy";
-  } else if (predictedTotalRainfall === 0 && predictedAvgTemp >= 30) {
+  } else if (predictedTotalRainfall <= 50 && predictedAvgTemp >= 27) {
     return "Sunny";
   } else {
     return "Partly Cloudy";

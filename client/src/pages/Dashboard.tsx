@@ -223,7 +223,8 @@ export default function Dashboard() {
         ? forecastMonth.data
           ? getClimateConditionFromForecast(
               forecastMonth.data.predictedTotalRainfall,
-              forecastMonth.data.predictedAvgTemp
+              forecastMonth.data.predictedAvgTemp,
+              forecastMonth.data.predictedRainDays
             )
           : "Partly Cloudy"
         : monthWeather.condition;
