@@ -1,224 +1,266 @@
-# climateFusionX
+# ClimateFusionX
 
-**Climate change trend analysis and forecasting platform**
+ClimateFusionX is a full-stack climate and Indian weather analytics platform. It combines climate trend forecasting with city-level weather exploration for temperature, rainfall, AQI, humidity, wind, cloud cover, and seasonal comparisons.
 
-A modern full-stack web application for analyzing climate data and generating forecasts for temperature, CO2 levels, and sea level changes across different global regions.
+## Current Improvements
+
+- Expanded dashboard with climate forecasts and Indian city weather analytics in one workflow.
+- Added city-level weather data from `attached_assets/Indian_Climate_Dataset_2024_2025.csv`.
+- Added month/year weather summaries, date-range season presets, yearly summaries, and city comparisons.
+- Added forecast views for future months and yearly weather projections.
+- Added weather insight charts for AQI, temperature bands, humidity/rainfall, rainfall histogram, wind/cloud, monthly summaries, city comparison, climate variable comparison, and season comparison.
+- Added CSV export for climate forecasts and daily weather chart data.
+- Added animated weather/climate backgrounds and improved loading/error states.
+- Added persisted dashboard controls through `localStorage`.
 
 ## Features
 
-- 📊 **Climate Data Visualization** - Interactive charts for temperature, CO2, and sea level trends
-- 🔮 **Forecasting Engine** - Generate climate predictions based on historical data
-- 🌍 **Multi-Region Support** - Analyze data for Global, India, and USA regions
-- 📈 **Multiple Variables** - Track temperature, CO2 levels, and sea level rise
-- ⚡ **In-Memory Storage** - Fast data access without database overhead
-- 🎨 **Modern UI** - Built with React and Shadcn UI components
-- 📱 **Responsive Design** - Works seamlessly on desktop and mobile devices
+### Climate Forecasting
+
+- Forecast temperature, CO2, and sea level trends.
+- Compare global, India, and USA climate series.
+- Generate 1-year, 2-year, and 3-year forecast horizons.
+- Display confidence bounds and model metrics such as RMSE and MAE.
+- Export historical and forecast data to CSV.
+
+### Indian Weather Analytics
+
+- Explore weather for Mumbai, Delhi, Bengaluru, Chennai, Kolkata, Hyderabad, Ahmedabad, Jaipur, Lucknow, and Bhopal.
+- View current/latest weather or select a month and year.
+- Compare one city against another for the selected month.
+- Use monsoon and winter season presets for seasonal summaries.
+- View 7-day synthetic outlooks based on recent city data.
+- Forecast future monthly and yearly weather from historical seasonal averages.
+- Export daily weather data to CSV.
 
 ## Tech Stack
 
 ### Frontend
-- **React** with TypeScript
-- **Vite** - Lightning-fast build tool
-- **TanStack Query** - Server state management
-- **Shadcn UI** - High-quality UI component library
-- **Tailwind CSS** - Utility-first CSS framework
-- **Recharts** - Data visualization library
+
+- React 18 with TypeScript
+- Vite
+- Wouter routing
+- TanStack Query
+- Tailwind CSS
+- Radix UI and Shadcn-style components
+- Recharts
+- Framer Motion
+- Lucide React icons
 
 ### Backend
-- **Express.js** - Node.js web framework
-- **TypeScript** - Type-safe JavaScript
-- **TSX** - TypeScript execution runtime
-- **In-Memory Storage** - Fast data management
+
+- Express 5
+- TypeScript
+- TSX development runtime
+- In-memory storage
+- Drizzle schema definitions
+- Zod validation
+
+## Prerequisites
+
+- Node.js 18+
+- npm
 
 ## Installation
 
-### Prerequisites
-- Node.js 18+
-- npm or yarn
+```bash
+git clone https://github.com/proBala03/climateFusionX.git
+cd climateFusionX
+npm install
+```
 
-### Setup
+## Development
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/proBala03/climateFusionX.git
-   cd climateFusionX
-   ```
+Start the development server:
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+```bash
+npm run dev
+```
 
-3. **Start the development server**
-   ```bash
-   npm run dev
-   ```
+The app runs at:
 
-   The application will be available at `http://localhost:5000`
+```text
+http://localhost:5000
+```
 
 ## Available Scripts
 
-- `npm run dev` - Start the development server
-- `npm run build` - Build the production bundle
-- `npm run start` - Start the production server
-- `npm run check` - Run TypeScript type checking
+- `npm run dev` - Start the Express and Vite development server.
+- `npm run build` - Build the production client and server bundles into `dist/`.
+- `npm run start` - Start the production server from `dist/index.cjs`.
+- `npm run check` - Run TypeScript type checking.
+- `npm run db:push` - Push the Drizzle schema when using a configured database.
 
 ## API Endpoints
 
-### Get Climate Data Series
-**GET** `/api/climate/series/:variable/:region`
+### Climate
 
-Get historical climate data for a specific variable and region.
+#### Get Climate Series
 
-**Parameters:**
-- `variable` - One of: `temperature`, `co2`, `sea_level`
-- `region` - One of: `global`, `india`, `usa`
+```http
+GET /api/series/:variable/:region
+```
 
-**Example:**
+Parameters:
+
+- `variable`: `temperature`, `co2`, or `sea_level`
+- `region`: `global`, `india`, or `usa`
+
+Example:
+
 ```bash
-curl http://localhost:5000/api/climate/series/temperature/india
+curl http://localhost:5000/api/series/temperature/india
 ```
 
-**Response:**
-```json
-[
-  { "year": 2000, "value": 24.2 },
-  { "year": 2005, "value": 24.5 },
-  { "year": 2010, "value": 24.7 }
-]
+#### Generate Climate Forecast
+
+```http
+POST /api/forecast
 ```
 
-### Generate Climate Forecast
-**POST** `/api/climate/forecast`
+Request body:
 
-Generate climate predictions for a specific variable and region.
-
-**Request Body:**
 ```json
 {
   "variable": "temperature",
   "region": "global",
-  "horizon": 12,
+  "horizon": 365,
   "model": "ensemble"
 }
 ```
 
-**Parameters:**
-- `variable` - Climate variable to forecast (required)
-- `region` - Geographic region (required)
-- `horizon` - Forecast horizon in years/months (required)
-- `model` - Forecasting model, default: `ensemble` (optional)
+Notes:
 
-**Response:**
-```json
-{
-  "historical": [
-    { "year": 2000, "value": 14.4 },
-    { "year": 2025, "value": 15.1 }
-  ],
-  "forecast": [
-    { "year": 2026, "value": 15.15, "lowerBound": 15.0, "upperBound": 15.3 },
-    { "year": 2027, "value": 15.20, "lowerBound": 15.05, "upperBound": 15.35 }
-  ],
-  "metrics": {
-    "rmse": 0.28,
-    "mae": 0.15,
-    "model": "ensemble"
-  }
-}
+- `horizon` is treated as days by the current forecast logic.
+- Supported dashboard values are `365`, `730`, and `1095`.
+
+#### Get Climate Metrics
+
+```http
+GET /api/metrics
 ```
 
-## Sample Data
+### Weather
 
-The application comes with pre-loaded sample climate data including:
+#### Latest Weather
 
-- **Temperature** (°C): Global, India, USA (2000-2025)
-- **CO2** (ppm): Global measurements (2000-2025)
-- **Sea Level** (mm): Global measurements relative to 2000 baseline (2000-2025)
+```http
+GET /api/weather/latest
+GET /api/weather/latest?city=Mumbai
+GET /api/weather/latest/:city
+```
+
+#### Weather by Month
+
+```http
+GET /api/weather/by-month?city=Mumbai&year=2025&month=6
+```
+
+Returns a monthly summary plus daily records.
+
+#### Weather by Date Range
+
+```http
+GET /api/weather/range?city=Mumbai&from=2025-06-01&to=2025-09-30
+```
+
+Used by seasonal presets such as monsoon and winter.
+
+#### Short-Term Forecast
+
+```http
+GET /api/weather/forecast?city=Mumbai&days=7
+```
+
+Returns a synthetic daily outlook based on recent city weather.
+
+#### Monthly Forecast
+
+```http
+GET /api/weather/forecast/month?city=Mumbai&year=2026&month=7
+```
+
+Returns predicted rainfall, average temperature, rain days, and rainfall bounds.
+
+#### Yearly Monthly Forecast
+
+```http
+GET /api/weather/forecast/monthly?city=Mumbai&year=2026
+```
+
+Returns 12 monthly forecast points.
+
+#### Forecast Month Daily Series
+
+```http
+GET /api/weather/forecast/month/daily?city=Mumbai&year=2026&month=7
+```
+
+Returns historical daily data when available, otherwise generated daily forecast data.
+
+#### Year Summary
+
+```http
+GET /api/weather/year?city=Mumbai&year=2025
+```
+
+Returns monthly average temperature, rainfall, and AQI summaries.
+
+#### Weather Insight Forecasts
+
+```http
+GET /api/weather/forecast/wind-cloud?city=Mumbai&days=7
+GET /api/weather/forecast/humidity-rainfall?city=Mumbai&days=7
+GET /api/weather/forecast/rainfall-histogram?city=Mumbai&days=7
+GET /api/weather/forecast/aqi?city=Mumbai&days=7
+```
+
+These endpoints return historical data plus forecast points for the dashboard insight charts.
+
+## Data
+
+The app uses in-memory storage and loads data at startup.
+
+- Climate sample data is initialized in `server/storage.ts`.
+- Additional seeded climate data is generated in `server/routes.ts`.
+- Indian weather data is loaded from `attached_assets/Indian_Climate_Dataset_2024_2025.csv`.
+- The weather CSV contains 7,890 daily records across the supported Indian cities for 2024 and 2025.
+
+Because storage is in memory, runtime data resets whenever the server restarts.
 
 ## Project Structure
 
-```
+```text
 climateFusionX/
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── components/    # React components
-│   │   ├── pages/         # Page components
-│   │   ├── hooks/         # Custom React hooks
-│   │   └── lib/           # Utility libraries
-│   └── index.html
-├── server/                # Express backend
-│   ├── index.ts          # Main server file
-│   ├── routes.ts         # API routes
-│   ├── storage.ts        # In-memory storage
-│   └── db.ts             # Database configuration
-├── shared/                # Shared TypeScript types
-│   ├── schema.ts         # Data schemas
-│   └── routes.ts         # API route definitions
-└── package.json
+|-- attached_assets/          # Indian weather CSV and supporting assets
+|-- client/                   # React frontend
+|   |-- src/
+|   |   |-- components/       # Charts, UI, backgrounds, and shared components
+|   |   |-- hooks/            # TanStack Query hooks
+|   |   |-- lib/              # Utilities and CSV export helpers
+|   |   `-- pages/            # Home, Dashboard, About, Not Found
+|   `-- index.html
+|-- script/                   # Build script
+|-- server/                   # Express backend, routes, storage, static serving
+|-- shared/                   # Shared schemas and API route definitions
+|-- package.json
+`-- README.md
 ```
-
-## Usage
-
-1. **View Climate Trends**
-   - Navigate to the Dashboard to see interactive charts of climate data
-   - Select different variables and regions from the UI
-
-2. **Generate Forecasts**
-   - Use the forecast panel to predict future climate trends
-   - Adjust the forecast horizon (1-36 years)
-   - View historical data alongside predictions
-
-3. **Compare Regions**
-   - Switch between Global, India, and USA to compare regional trends
-   - Analyze regional differences in climate change
-
-## Development
-
-### Building
-```bash
-npm run build
-```
-
-This creates optimized production bundles in the `dist/` directory.
-
-### Type Checking
-```bash
-npm run check
-```
-
-### Adding New Features
-1. Define new schemas in [shared/schema.ts](shared/schema.ts)
-2. Add API routes in [server/routes.ts](server/routes.ts)
-3. Create React components in [client/src/components/](client/src/components/)
-4. Update the data storage in [server/storage.ts](server/storage.ts)
 
 ## Environment Variables
 
-The application works without external configuration. Optional variables:
+- `PORT` - Server port. Defaults to `5000`.
+- `NODE_ENV` - Runtime mode, usually `development` or `production`.
 
-- `PORT` - Server port (default: 5000)
-- `NODE_ENV` - Environment mode (development/production)
+## Production Build
 
-## Browser Support
+```bash
+npm run build
+npm run start
+```
 
-- Chrome/Chromium (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
+## Notes
 
-## Contributing
-
-Contributions are welcome! Feel free to submit pull requests or open issues for any bugs or feature requests.
-
-## License
-
-MIT License - See LICENSE file for details
-
-## Contact & Support
-
-For questions or support, please open an issue on the GitHub repository.
-
----
-
-**Note:** This application uses in-memory storage, so all data will be reset when the server restarts. For production use with persistent data, consider integrating a database like PostgreSQL.
+- Forecasting is currently implemented with lightweight synthetic and ensemble-style calculations for local demos.
+- The app does not require an external database for normal local usage.
+- Drizzle and PostgreSQL-related packages are present for future persistence work, but the active runtime storage is in memory.
